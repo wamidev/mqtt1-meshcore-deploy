@@ -14,6 +14,8 @@ server {
     }
 
     location /mqtt {
+        default_type text/plain;
+        charset utf-8;
         if ($http_upgrade = '') {
             return 426 "WebSocket upgrade required\n";
         }
@@ -32,6 +34,8 @@ server {
     # Public read-only access to the deduplicated feed. Authorization is
     # enforced by the internal Mosquitto ACL (corescope-ro / map-ro).
     location /feed {
+        default_type text/plain;
+        charset utf-8;
         if ($http_upgrade = '') {
             return 426 "WebSocket upgrade required\n";
         }
@@ -49,6 +53,8 @@ server {
 
     # The MeshCore Home Assistant integration uses the WebSocket root path.
     location = / {
+        default_type text/plain;
+        charset utf-8;
         if ($http_upgrade = '') {
             return 200 "MeshCore CZ MQTT2 endpoint\n";
         }

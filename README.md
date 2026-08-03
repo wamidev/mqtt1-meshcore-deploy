@@ -17,7 +17,8 @@ odebírat pouze `meshcore/feed/#`.
 
 Běžný HTTP požadavek prohlížeče na `/` vrací místní identifikaci MQTT uzlu.
 Nepřesměrovává na web upstream projektu. Cesty `/mqtt` a `/feed` bez WebSocket
-upgrade vracejí HTTP `426`.
+upgrade vracejí HTTP `426`. Tyto textové odpovědi mají explicitní MIME typ
+`text/plain`, aby je prohlížeč nestahoval jako soubor.
 
 ## Co na uzlu běží
 
