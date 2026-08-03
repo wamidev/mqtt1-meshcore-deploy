@@ -20,6 +20,10 @@ Nepřesměrovává na web upstream projektu. Cesty `/mqtt` a `/feed` bez WebSock
 upgrade vracejí HTTP `426`. Tyto textové odpovědi mají explicitní MIME typ
 `text/plain`, aby je prohlížeč nestahoval jako soubor.
 
+Nginx používá vlastní `default.conf`, skrývá přesnou verzi pomocí
+`server_tokens off`, odmítá neočekávaný `Host` a neznámé cesty vracejí pouze
+obecné `404 Not found`.
+
 ## Co na uzlu běží
 
 - `public-broker`: veřejný WebSocket broker ověřující MeshCore Ed25519 tokeny;
