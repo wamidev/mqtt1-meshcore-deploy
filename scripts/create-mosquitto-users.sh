@@ -45,4 +45,8 @@ add_user dedup-writer "$DEDUP_WRITER_PASSWORD"
 add_user corescope-ro "$CORESCOPE_RO_PASSWORD"
 add_user map-ro "$MAP_RO_PASSWORD"
 
-echo "Created $PASSWD_FILE with mode 600."
+docker run --rm --user 0:0 --entrypoint sh \
+  -v "$CONFIG_DIR:/mosquitto/config" eclipse-mosquitto:2 \
+  -c 'chown root:root /mosquitto/config/passwd && chmod 644 /mosquitto/config/passwd'
+
+echo "Created $PASSWD_FILE with mode 644 so the unprivileged Mosquitto process can read it."

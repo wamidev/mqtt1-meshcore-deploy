@@ -45,7 +45,7 @@ services:
     environment:
       MQTT_HEALTH_PASSWORD: ${MQTT_LOCAL_DEDUP_READER_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -u feed-health -P '$${MQTT_HEALTH_PASSWORD}' -t '$$SYS/broker/version' -C 1 -W 5 >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -u feed-health -P \"$${MQTT_HEALTH_PASSWORD}\" -t '$$SYS/broker/version' -C 1 -W 5 >/dev/null 2>&1"]
       interval: 30s
       timeout: 10s
       retries: 3

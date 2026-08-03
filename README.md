@@ -117,6 +117,8 @@ Vytvoření účtů interního Mosquitta:
 ```
 
 Vytvoří se pouze účty `feed-health`, `dedup-writer`, `corescope-ro` a `map-ro`.
+Password file musí vlastnit `root:root` s režimem `644`, protože kontejner po
+startu přepne na neprivilegovaného uživatele `mosquitto`.
 
 ## Spuštění
 
