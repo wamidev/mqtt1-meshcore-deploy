@@ -18,6 +18,17 @@ zůstávají uvnitř Docker sítě.
 
 ## 1. Příprava před instalací
 
+Pro každý MQTT uzel doporučujeme virtuální server s touto konfigurací:
+
+```text
+Operační systém: Ubuntu Server 24.04 LTS (64-bit / amd64)
+RAM:             4 GB
+Disk:            40 GB SSD nebo NVMe
+```
+
+Použijte serverovou variantu Ubuntu bez grafického prostředí. Každý broker
+(`mqtt1` a `mqtt2`) běží na samostatném virtuálním serveru.
+
 Připravte:
 
 - čistý podporovaný Ubuntu Server,
