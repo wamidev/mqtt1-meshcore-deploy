@@ -5,6 +5,8 @@ services:
     depends_on:
       public-broker:
         condition: service_started
+      feed-broker:
+        condition: service_healthy
     ports:
       - "80:80"
     environment:

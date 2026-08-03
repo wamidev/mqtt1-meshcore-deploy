@@ -11,6 +11,10 @@ proxy, MQTT2 používá Cloudflare Tunnel.
 Oba endpointy přijímají WebSocket na `/mqtt` i na `/`. Cesta `/` je nutná pro
 MeshCore integraci v Home Assistantu, která ji nastavuje pevně.
 
+Deduplikovaný read-only feed pro vzdálený CoreScope nebo mapu je dostupný na
+`wss://<doména>/feed`. Vyžaduje účet `corescope-ro` nebo `map-ro` a dovoluje
+odebírat pouze `meshcore/feed/#`.
+
 ## Co na uzlu běží
 
 - `public-broker`: veřejný WebSocket broker ověřující MeshCore Ed25519 tokeny;
@@ -174,6 +178,19 @@ interní výstup: meshcore/feed/{lokace}/{public_key}/...
 
 `dedup-reader` je read-only účet veřejných brokerů. `dedup-writer` smí zapisovat
 jen `meshcore/feed/#`; `corescope-ro` a `map-ro` jej smějí jen číst.
+
+Příklad vzdáleného CoreScope:
+
+```json
+{
+  "name": "mqtt2-deduplicated-feed",
+  "broker": "wss://mqtt2.meshcore.website/feed",
+  "username": "corescope-ro",
+  "password": "HESLO_Z_CORESCOPE_RO_PASSWORD",
+  "rejectUnauthorized": true,
+  "topics": ["meshcore/feed/#"]
+}
+```
 
 ## Image tokenového brokeru
 

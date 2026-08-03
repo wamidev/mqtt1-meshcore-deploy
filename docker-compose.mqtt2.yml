@@ -5,6 +5,8 @@ services:
     depends_on:
       public-broker:
         condition: service_started
+      feed-broker:
+        condition: service_healthy
     expose:
       - "80"
     environment:
