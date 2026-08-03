@@ -8,7 +8,7 @@ CONFIG_DIR="$DEPLOY_DIR/mosquitto/config"
 PASSWD_FILE="$CONFIG_DIR/passwd"
 
 if [ ! -f "$ENV_FILE" ]; then
-  echo "Missing $ENV_FILE. Copy .env.example to .env and edit it first." >&2
+  echo "Missing $ENV_FILE. Copy .env.mqtt1.example or .env.mqtt2.example to .env first." >&2
   exit 1
 fi
 

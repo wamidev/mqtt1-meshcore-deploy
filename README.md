@@ -1,24 +1,24 @@
-# Nasazení MeshCore MQTT uzlu
+# Nasazení MeshCore MQTT serverů
 
-Tento repozitář obsahuje pouze soubory potřebné k nasazení jednoho MQTT uzlu.
-Stejný postup použijte pro `mqtt1.meshcore.cz` i `mqtt2.meshcore.website`;
-jednotlivé servery se liší pouze souborem `.env` a TLS certifikátem.
+Tento repozitář obsahuje deployment pro dva samostatné MQTT uzly. Každý uzel
+používá Mosquitto, Nginx a dedup-worker, ale liší se způsobem připojení k
+internetu:
 
-## Co se na server nainstaluje
+| Uzel | Veřejná doména | Připojení |
+| --- | --- | --- |
+| `mqtt1` | `mqtt1.meshcore.cz` | veřejný nadřazený Nginx proxy před interní MQTT VM |
+| `mqtt2` | `mqtt2.meshcore.website` | Cloudflare Tunnel, bez otevřených portů |
 
-Docker Compose spustí tři služby:
+Veřejné MQTT endpointy jsou v obou případech stejného typu:
 
-- `mosquitto` – lokální MQTT broker,
-- `nginx` – veřejný HTTPS/WSS endpoint `/mqtt`,
-- `dedup-worker` – čte raw data z obou brokerů a publikuje lokální
-  `meshcore/feed/#`.
+```text
+wss://mqtt1.meshcore.cz/mqtt
+wss://mqtt2.meshcore.website/mqtt
+```
 
-Z internetu jsou vystavené pouze porty `80` a `443`. MQTT porty `1883` a `9001`
-zůstávají uvnitř Docker sítě.
+## Doporučený virtuální server
 
-## 1. Příprava před instalací
-
-Pro každý MQTT uzel doporučujeme virtuální server s touto konfigurací:
+Pro každý uzel doporučujeme samostatnou VM:
 
 ```text
 Operační systém: Ubuntu Server 24.04 LTS (64-bit / amd64)
@@ -26,60 +26,45 @@ RAM:             4 GB
 Disk:            40 GB SSD nebo NVMe
 ```
 
-Použijte serverovou variantu Ubuntu bez grafického prostředí. Každý broker
-(`mqtt1` a `mqtt2`) běží na samostatném virtuálním serveru.
+Použijte serverovou variantu Ubuntu bez grafického prostředí. Konkrétní
+uživatelská jména, hesla, IP adresy a tokeny do dokumentace ani Gitu nepatří.
 
-Připravte:
+## Společná příprava obou serverů
 
-- čistý podporovaný Ubuntu Server,
-- účet s oprávněním `sudo`,
-- DNS záznam domény směřující na veřejnou IP serveru,
-- povolené příchozí porty TCP `80` a `443`,
-- TLS certifikát a privátní klíč pro danou doménu,
-- hesla MQTT účtů pro oba brokery.
-
-Pro první uzel použijte:
-
-```text
-mqtt1.meshcore.cz → veřejná IP Yomama serveru
-```
-
-Pro druhý uzel:
-
-```text
-mqtt2.meshcore.website → veřejná IP MirekOva serveru
-```
-
-Pokud používáte Cloudflare proxy, nastavte DNS záznam jako `Proxied` a režim
-šifrování na `SSL/TLS → Full (strict)`. Nevystavujte přes Cloudflare porty
-`1883` nebo `8883`; veřejné MQTT připojení používá WSS na portu `443`.
-
-## 2. Stažení deployment repozitáře
-
-Přihlaste se na server a spusťte:
+### 1. Aktualizace systému
 
 ```sh
-sudo apt-get update
-sudo apt-get install -y git
+sudo apt update
+sudo apt full-upgrade -y
+sudo apt install -y git curl ca-certificates openssl
+sudo timedatectl set-timezone Europe/Prague
+```
+
+Ověřte systém:
+
+```sh
+cat /etc/os-release
+timedatectl
+free -h
+df -h /
+```
+
+### 2. Stažení deployment repozitáře
+
+```sh
+cd ~
 git clone https://github.com/mesh-cz/meshcore-mqtt-stack-deploy.git
 cd meshcore-mqtt-stack-deploy
 ```
 
-## 3. Instalace Dockeru
-
-Instalační skript je určený pouze pro Ubuntu:
+### 3. Instalace Dockeru
 
 ```sh
 sudo ./scripts/install-docker-ubuntu.sh
-```
-
-Povolte přihlášenému uživateli spouštět Docker bez `sudo`:
-
-```sh
 sudo usermod -aG docker "$USER"
 ```
 
-Potom se odhlaste ze SSH a znovu přihlaste. Ověřte instalaci:
+Odhlaste se ze SSH a znovu se přihlaste. Potom ověřte:
 
 ```sh
 docker --version
@@ -87,52 +72,131 @@ docker compose version
 docker run --rm hello-world
 ```
 
-## 4. Vytvoření konfigurace `.env`
+## Varianta A: `mqtt1.meshcore.cz` za veřejným Nginx proxy
 
-Vytvořte lokální konfiguraci:
+Datový tok:
 
-```sh
-cp .env.example .env
-nano .env
+```text
+Internet → veřejný Nginx proxy → interní mqtt1 VM:80 → Nginx → Mosquitto:9001
 ```
 
-Soubor `.env` je ignorovaný Gitem a nesmí se commitovat.
+### Síť a nadřazený reverse proxy
 
-### Nastavení uzlu `mqtt1`
+1. DNS záznam `mqtt1.meshcore.cz` směřuje na existující veřejný server s
+   Nginx reverse proxy.
+2. Veřejný Nginx ukončuje TLS a předává `/mqtt` i `/health` na interní IP
+   MQTT VM, port `80`.
+3. Veřejný proxy musí zachovat hlavičky `Upgrade` a `Connection`, aby fungoval
+   WebSocket.
+4. Přístup na port `80` interní MQTT VM povolte pouze z nadřazeného proxy a
+   administrační sítě.
+5. Porty `443`, `1883` a `9001` na MQTT VM nezveřejňujte.
+
+Příklad částí konfigurace na veřejném Nginx proxy:
+
+```nginx
+location /mqtt {
+    proxy_pass http://<MQTT1_INTERNAL_IP>:80;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+    proxy_buffering off;
+}
+
+location = /health {
+    proxy_pass http://<MQTT1_INTERNAL_IP>:80/health;
+    proxy_set_header Host $host;
+}
+```
+
+Tento blok vložte do existujícího HTTPS `server` bloku pro
+`mqtt1.meshcore.cz`. Hodnotu `<MQTT1_INTERNAL_IP>` nahraďte interní adresou VM.
+
+### Konfigurace `.env`
+
+```sh
+cp .env.mqtt1.example .env
+nano .env
+chmod 600 .env
+```
+
+Šablona již obsahuje:
 
 ```env
+DEPLOY_MODE=mqtt1-proxy
 COMPOSE_PROJECT_NAME=meshcore-mqtt1
 PUBLIC_DOMAIN=mqtt1.meshcore.cz
 MQTT_CLIENT_ID_PREFIX=meshcore-dedup-mqtt1
 ```
 
-### Nastavení uzlu `mqtt2`
+Nahraďte všechny hodnoty `CHANGE_ME`. Význam a vazby hesel jsou popsané níže.
+Na MQTT VM se neinstaluje TLS certifikát; HTTPS zajišťuje nadřazený veřejný
+Nginx proxy.
+
+## Varianta B: `mqtt2.meshcore.website` přes Cloudflare Tunnel
+
+Datový tok:
+
+```text
+Internet → Cloudflare → odchozí Cloudflare Tunnel → Nginx:80 → Mosquitto:9001
+```
+
+Tato varianta nepotřebuje veřejnou IPv4, NAT, otevřené porty ani TLS certifikát
+na serveru. Cloudflared běží jako součást Docker Compose a navazuje pouze
+odchozí spojení do Cloudflare.
+
+### Vytvoření tunelu
+
+1. V Cloudflare dashboardu otevřete `Networking → Tunnels`.
+2. Vytvořte remotely-managed tunnel, například `meshcore-mqtt2`.
+3. Zvolte konektor Docker a z instalačního příkazu zkopírujte pouze hodnotu
+   tokenu začínající typicky `eyJ...`.
+4. Token nikam neposílejte a neukládejte do GitHubu.
+5. V tunelu přidejte Published application:
+
+```text
+Subdomain: mqtt2
+Domain:    meshcore.website
+Type:      HTTP
+Service:   http://nginx:80
+```
+
+Cloudflare automaticky zajistí veřejné HTTPS/WSS a odpovídající DNS trasu.
+
+### Konfigurace `.env`
+
+```sh
+cp .env.mqtt2.example .env
+nano .env
+chmod 600 .env
+```
+
+Šablona již obsahuje:
 
 ```env
+DEPLOY_MODE=mqtt2-tunnel
 COMPOSE_PROJECT_NAME=meshcore-mqtt2
 PUBLIC_DOMAIN=mqtt2.meshcore.website
 MQTT_CLIENT_ID_PREFIX=meshcore-dedup-mqtt2
 ```
 
-Na obou uzlech ponechte oba zdroje:
+Vložte token tunelu a nahraďte všechny ostatní hodnoty `CHANGE_ME`:
 
 ```env
-MQTT_SOURCE_1_URL=wss://mqtt1.meshcore.cz/mqtt
-MQTT_SOURCE_2_URL=wss://mqtt2.meshcore.website/mqtt
-MQTT_INPUT_TOPIC=meshcore/raw/#
-MQTT_OUTPUT_PREFIX=meshcore/feed
+CLOUDFLARE_TUNNEL_TOKEN=PASTE_TUNNEL_TOKEN_HERE
 ```
 
-### Nastavení hesel
+Pro `mqtt2` nevytvářejte `secrets/nginx` a neotevírejte veřejné porty `80`,
+`443`, `1883` ani `9001`.
 
-Nahraďte všechny hodnoty začínající `CHANGE_ME`. Pro generování hesel lze
-použít například:
+## MQTT účty a hesla
 
-```sh
-openssl rand -base64 32
-```
-
-Význam účtů:
+Každý broker má tyto lokální účty:
 
 | Účet | Oprávnění |
 | --- | --- |
@@ -142,6 +206,12 @@ Význam účtů:
 | `corescope-ro` | čtení z `meshcore/feed/#` |
 | `map-ro` | čtení z `meshcore/feed/#` |
 
+Silná hesla můžete generovat příkazem:
+
+```sh
+openssl rand -base64 32
+```
+
 Na každém serveru musí platit:
 
 ```text
@@ -149,123 +219,78 @@ MQTT_LOCAL_DEDUP_READER_PASSWORD = DEDUP_READER_PASSWORD
 MQTT_TARGET_PASSWORD             = DEDUP_WRITER_PASSWORD
 ```
 
-Přihlašovací údaje `MQTT_SOURCE_1_*` musí odpovídat účtu `dedup-reader` na
-`mqtt1`; údaje `MQTT_SOURCE_2_*` musí odpovídat stejnému účtu na `mqtt2`.
-Proto musí mít dedup-worker na obou serverech k dispozici hesla obou brokerů.
+Údaje `MQTT_SOURCE_1_*` musí odpovídat účtu `dedup-reader` na `mqtt1` a údaje
+`MQTT_SOURCE_2_*` stejnému účtu na `mqtt2`. Oba dedup-workery proto potřebují
+znát reader hesla obou brokerů.
 
-Doporučené oprávnění souboru:
-
-```sh
-chmod 600 .env
-```
-
-## 5. TLS certifikát
-
-Vytvořte lokální adresář:
-
-```sh
-mkdir -p secrets/nginx
-chmod 700 secrets secrets/nginx
-```
-
-Do něj vložte certifikát a privátní klíč pod přesnými názvy:
-
-```text
-secrets/nginx/fullchain.pem
-secrets/nginx/privkey.pem
-```
-
-Při použití Cloudflare Origin Certificate vložte origin certifikát do
-`fullchain.pem` a jeho privátní klíč do `privkey.pem`. Nastavte oprávnění:
-
-```sh
-chmod 644 secrets/nginx/fullchain.pem
-chmod 600 secrets/nginx/privkey.pem
-```
-
-Tyto soubory jsou ignorované Gitem. Nikdy je neposílejte do repozitáře.
-
-## 6. Vytvoření MQTT uživatelů
-
-Po dokončení `.env` spusťte:
+Po dokončení `.env` vytvořte password file:
 
 ```sh
 ./scripts/create-mosquitto-users.sh
 ```
 
-Skript vytvoří:
+Skript založí `mosquitto/config/passwd` a z bezpečnostních důvodů nepřepíše již
+existující soubor.
 
-```text
-mosquitto/config/passwd
-```
+## Spuštění
 
-a založí účty `observer`, `dedup-reader`, `dedup-writer`, `corescope-ro` a
-`map-ro`. Existující soubor hesel skript z bezpečnostních důvodů nepřepíše.
-
-## 7. Spuštění stacku
+Na obou serverech se používá stejný příkaz:
 
 ```sh
 ./scripts/start.sh
 ```
 
-Skript před spuštěním ověří:
+Skript načte `DEPLOY_MODE` a automaticky zvolí správné Compose soubory:
 
-- existenci `.env`,
-- odstranění všech hodnot `CHANGE_ME`,
-- existenci MQTT password file,
-- existenci TLS certifikátu a klíče,
-- shodu hesel lokálního readeru a writeru,
-- platnost Docker Compose konfigurace.
-
-Potom stáhne image a spustí kontejnery. Zkontrolujte stav:
-
-```sh
-docker compose ps
+```text
+mqtt1-proxy  → docker-compose.yml + docker-compose.mqtt1.yml
+mqtt2-tunnel → docker-compose.yml + docker-compose.mqtt2.yml
 ```
 
-Všechny služby by měly být `Up`; Mosquitto a Nginx následně také `healthy`.
-Při prvním nasazení může dedup-worker dočasně restartovat, dokud nebude dostupný
-druhý MQTT broker.
+U `mqtt2` navíc vyžaduje Cloudflare Tunnel token. Potom ověří konfiguraci,
+stáhne image a spustí služby.
 
-## 8. Ověření nasazení
+## Ověření
 
-Ověřte health endpoint:
+Stav služeb:
+
+```sh
+./scripts/compose.sh ps
+```
+
+Na `mqtt1` musí běžet:
+
+```text
+mosquitto, nginx, dedup-worker
+```
+
+Na `mqtt2` musí běžet:
+
+```text
+mosquitto, nginx, dedup-worker, cloudflared
+```
+
+Ověřte veřejné endpointy:
 
 ```sh
 curl -fsS https://mqtt1.meshcore.cz/health
+curl -fsS https://mqtt2.meshcore.website/health
 ```
 
-Na druhém uzlu nahraďte doménu za `mqtt2.meshcore.website`.
+Očekávaná odpověď je `ok`.
 
-Očekávaná odpověď:
-
-```text
-ok
-```
-
-Veřejný MQTT endpoint je:
-
-```text
-wss://<PUBLIC_DOMAIN>/mqtt
-```
-
-Pro kontrolu logů použijte:
+Logy:
 
 ```sh
-docker compose logs --tail=100 mosquitto
-docker compose logs --tail=100 nginx
-docker compose logs --tail=100 dedup-worker
+./scripts/compose.sh logs --tail=100 mosquitto
+./scripts/compose.sh logs --tail=100 nginx
+./scripts/compose.sh logs --tail=100 dedup-worker
+./scripts/compose.sh logs --tail=100 cloudflared
 ```
 
-Živý výpis workeru:
+Poslední příkaz patří pouze na `mqtt2`.
 
-```sh
-docker compose logs -f dedup-worker
-```
-
-Každou minutu vypisuje počty přijatých, předaných a duplicitních zpráv.
-
-## 9. Připojení klientů
+## Připojení klientů
 
 Observer zapisuje přes veřejný WSS endpoint do:
 
@@ -281,83 +306,67 @@ Topic:    meshcore/feed/#
 Username: corescope-ro nebo map-ro
 ```
 
-Pokud CoreScope nebo mapa běží mimo tuto Docker síť, nepovolujte automaticky
-veřejný port `1883`. Použijte veřejný WSS endpoint s read-only účtem nebo službu
-připojte do stejné Docker sítě.
+Pokud aplikace běží mimo Docker síť, použijte veřejný WSS endpoint s read-only
+účtem. Nezveřejňujte kvůli tomu port `1883`.
 
-## 10. Aktualizace
+## Aktualizace
 
-Před aktualizací zálohujte lokální konfigurační soubory mimo klon repozitáře:
-
-```sh
-sudo install -m 600 .env /root/meshcore-mqtt.env.backup
-sudo install -m 600 mosquitto/config/passwd /root/meshcore-mqtt.passwd.backup
-```
-
-Stáhněte změny a aktualizujte kontejnery:
+Nejdříve bezpečně zálohujte `.env` a password file mimo repozitář. Potom:
 
 ```sh
 git pull --ff-only
-docker compose pull
-docker compose up -d
-docker compose ps
+./scripts/compose.sh pull
+./scripts/compose.sh up -d
+./scripts/compose.sh ps
 ```
 
-Zálohy uchovávejte zabezpečeně a nikdy je nekopírujte do deployment repozitáře.
-
-## 11. Restart a zastavení
+## Restart a zastavení
 
 ```sh
-docker compose restart
-docker compose stop
-docker compose start
-docker compose down
+./scripts/compose.sh restart
+./scripts/compose.sh stop
+./scripts/compose.sh start
+./scripts/compose.sh down
 ```
-
-`docker compose down` odstraní kontejnery a síť, ale nesmaže bind-mounted data
-Mosquitta. Nepoužívejte `down -v`, pokud přesně nevíte, jaká data odstraňujete.
 
 ## Řešení problémů
 
-### Nginx se nespustí
-
-Zkontrolujte názvy a oprávnění certifikátů:
+### `mqtt1`: Nginx se nespustí
 
 ```sh
-ls -l secrets/nginx/fullchain.pem secrets/nginx/privkey.pem
-docker compose logs nginx
+./scripts/compose.sh logs nginx
 ```
+
+Ověřte, že port `80` není obsazený jinou službou. Pokud lokální Nginx běží, ale
+veřejný endpoint nefunguje, zkontrolujte konfiguraci nadřazeného Nginx proxy,
+interní IP adresu VM, firewall a WebSocket hlavičky.
+
+### `mqtt2`: Cloudflare Tunnel nefunguje
+
+```sh
+./scripts/compose.sh logs cloudflared
+./scripts/compose.sh logs nginx
+```
+
+Ověřte `CLOUDFLARE_TUNNEL_TOKEN` a Published application se službou přesně
+`http://nginx:80`. Cloudflared a Nginx musí být ve stejné Docker síti.
 
 ### Mosquitto je `unhealthy`
 
-Ověřte, že se shodují hodnoty `MQTT_LOCAL_DEDUP_READER_PASSWORD` a
-`DEDUP_READER_PASSWORD`, a znovu vytvořte password file, pokud bylo heslo
-změněno.
+Ověřte shodu `MQTT_LOCAL_DEDUP_READER_PASSWORD` a `DEDUP_READER_PASSWORD`.
+Pokud jste heslo změnili, musíte bezpečně znovu vytvořit také password file.
 
-### Je potřeba změnit MQTT hesla
-
-Nejdříve stack zastavte a původní password file bezpečně přesuňte mimo
-deployment adresář. Upravte `.env`, znovu spusťte
-`create-mosquitto-users.sh` a potom `start.sh`. Hesla zdrojových brokerů musíte
-aktualizovat také v `.env` druhého uzlu.
-
-### Dedup-worker se stále restartuje
+### Dedup-worker se restartuje
 
 ```sh
-docker compose logs --tail=200 dedup-worker
+./scripts/compose.sh logs --tail=200 dedup-worker
 ```
 
-Zkontrolujte dostupnost obou URL `MQTT_SOURCE_1_URL` a `MQTT_SOURCE_2_URL`, DNS,
-TLS certifikáty vzdálených brokerů a přihlašovací údaje `dedup-reader`.
+Zkontrolujte dostupnost obou veřejných WSS URL, DNS a přihlašovací údaje
+`dedup-reader`. Při prvním nasazení může worker dočasně restartovat, dokud není
+dostupný také druhý broker.
 
-### Cloudflare vrací chybu 502 nebo 525/526
-
-- `502`: ověřte, že běží Nginx a port `443` je dostupný,
-- `525/526`: ověřte origin certifikát, doménu certifikátu a režim
-  `Full (strict)`,
-- ověřte, že DNS záznam směřuje na správnou veřejnou IP.
-
-## Bezpečnostní kontrola
+## Bezpečnost
 
 Nikdy necommitujte ani neposílejte:
 
@@ -365,16 +374,12 @@ Nikdy necommitujte ani neposílejte:
 .env
 mosquitto/config/passwd
 secrets/
+Cloudflare Tunnel token
 *.pem
 *.key
 *.crt
 produkční logy a data
 ```
 
-Před každým commitem spusťte:
-
-```sh
-git status
-```
-
-V seznamu změn smějí být pouze veřejné deployment soubory a šablony.
+Před každým commitem spusťte `git status`. V repozitáři smějí být pouze veřejné
+deployment soubory a šablony.

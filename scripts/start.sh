@@ -5,10 +5,8 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 DEPLOY_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 cd "$DEPLOY_DIR"
 
-[ -f .env ] || { echo "Missing .env (copy .env.example first)." >&2; exit 1; }
+[ -f .env ] || { echo "Missing .env (copy the mqtt1 or mqtt2 example first)." >&2; exit 1; }
 [ -s mosquitto/config/passwd ] || { echo "Missing passwd; run scripts/create-mosquitto-users.sh." >&2; exit 1; }
-[ -s secrets/nginx/fullchain.pem ] || { echo "Missing secrets/nginx/fullchain.pem." >&2; exit 1; }
-[ -s secrets/nginx/privkey.pem ] || { echo "Missing secrets/nginx/privkey.pem." >&2; exit 1; }
 
 if grep -q 'CHANGE_ME' .env; then
   echo ".env still contains CHANGE_ME placeholders." >&2
@@ -28,7 +26,25 @@ set +a
   exit 1
 }
 
-docker compose config --quiet
-docker compose pull
-docker compose up -d
-docker compose ps
+case "${DEPLOY_MODE:-}" in
+  mqtt1-proxy)
+    COMPOSE_OVERRIDE=docker-compose.mqtt1.yml
+    ;;
+  mqtt2-tunnel)
+    COMPOSE_OVERRIDE=docker-compose.mqtt2.yml
+    [ -n "${CLOUDFLARE_TUNNEL_TOKEN:-}" ] || { echo "Missing CLOUDFLARE_TUNNEL_TOKEN." >&2; exit 1; }
+    ;;
+  *)
+    echo "DEPLOY_MODE must be mqtt1-proxy or mqtt2-tunnel." >&2
+    exit 1
+    ;;
+esac
+
+compose() {
+  docker compose -f docker-compose.yml -f "$COMPOSE_OVERRIDE" "$@"
+}
+
+compose config --quiet
+compose pull
+compose up -d
+compose ps
