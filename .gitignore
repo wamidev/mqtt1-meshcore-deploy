@@ -2,6 +2,7 @@
 mosquitto/config/passwd
 mosquitto/data/
 mosquitto/log/
+public-broker/data/
 secrets/
 *.pem
 *.key

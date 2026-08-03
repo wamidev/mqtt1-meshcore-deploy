@@ -1,5 +1,38 @@
 services:
-  mosquitto:
+  public-broker:
+    image: ${MESHCORE_BROKER_IMAGE}
+    restart: unless-stopped
+    environment:
+      MQTT_HOST: 0.0.0.0
+      MQTT_WS_PORT: 8883
+      AUTH_EXPECTED_AUDIENCE: ${AUTH_EXPECTED_AUDIENCE}
+      SUBSCRIBER_MAX_CONNECTIONS_DEFAULT: 10
+      SUBSCRIBER_1: "dedup-reader:${PUBLIC_BROKER_READER_PASSWORD}:2:10"
+      ABUSE_ENFORCEMENT_ENABLED: ${ABUSE_ENFORCEMENT_ENABLED:-true}
+      ABUSE_DUPLICATE_WINDOW_SIZE: ${ABUSE_DUPLICATE_WINDOW_SIZE:-100}
+      ABUSE_DUPLICATE_WINDOW_MS: ${ABUSE_DUPLICATE_WINDOW_MS:-300000}
+      ABUSE_DUPLICATE_THRESHOLD: ${ABUSE_DUPLICATE_THRESHOLD:-10}
+      ABUSE_MAX_DUPLICATES_PER_PACKET: ${ABUSE_MAX_DUPLICATES_PER_PACKET:-5}
+      ABUSE_DUPLICATE_RATE_THRESHOLD: ${ABUSE_DUPLICATE_RATE_THRESHOLD:-0.3}
+      ABUSE_DUPLICATE_RATE_WINDOW_MS: ${ABUSE_DUPLICATE_RATE_WINDOW_MS:-300000}
+      ABUSE_BUCKET_CAPACITY: ${ABUSE_BUCKET_CAPACITY:-20}
+      ABUSE_BUCKET_REFILL_RATE: ${ABUSE_BUCKET_REFILL_RATE:-3}
+      ABUSE_MAX_PACKET_SIZE: ${ABUSE_MAX_PACKET_SIZE:-255}
+      ABUSE_MAX_TOPICS_PER_DAY: ${ABUSE_MAX_TOPICS_PER_DAY:-3}
+      ABUSE_ANOMALY_THRESHOLD: ${ABUSE_ANOMALY_THRESHOLD:-10}
+      ABUSE_MAX_IATA_CHANGES_24H: ${ABUSE_MAX_IATA_CHANGES_24H:-3}
+      ABUSE_TOPIC_HISTORY_SIZE: ${ABUSE_TOPIC_HISTORY_SIZE:-50}
+      ABUSE_TOPIC_HISTORY_WINDOW_MS: ${ABUSE_TOPIC_HISTORY_WINDOW_MS:-86400000}
+      ABUSE_PERSISTENCE_PATH: /data/abuse-detection.db
+      ABUSE_PERSISTENCE_INTERVAL_MS: ${ABUSE_PERSISTENCE_INTERVAL_MS:-300000}
+      ABUSE_STATE_RETENTION_MS: ${ABUSE_STATE_RETENTION_MS:-604800000}
+    volumes:
+      - ./public-broker/data:/data
+    expose:
+      - "8883"
+    networks: [meshcore_mqtt]
+
+  feed-broker:
     image: eclipse-mosquitto:2
     restart: unless-stopped
     volumes:
@@ -12,7 +45,7 @@ services:
     environment:
       MQTT_HEALTH_PASSWORD: ${MQTT_LOCAL_DEDUP_READER_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -u dedup-reader -P '$${MQTT_HEALTH_PASSWORD}' -t '$$SYS/broker/version' -C 1 -W 5 >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -u feed-health -P '$${MQTT_HEALTH_PASSWORD}' -t '$$SYS/broker/version' -C 1 -W 5 >/dev/null 2>&1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -23,8 +56,10 @@ services:
     image: ${DEDUP_WORKER_IMAGE}
     restart: unless-stopped
     depends_on:
-      mosquitto:
+      feed-broker:
         condition: service_healthy
+      public-broker:
+        condition: service_started
     environment:
       MQTT_SOURCE_1_URL: ${MQTT_SOURCE_1_URL}
       MQTT_SOURCE_1_USERNAME: ${MQTT_SOURCE_1_USERNAME}
@@ -35,7 +70,7 @@ services:
       MQTT_TARGET_URL: ${MQTT_TARGET_URL}
       MQTT_TARGET_USERNAME: ${MQTT_TARGET_USERNAME}
       MQTT_TARGET_PASSWORD: ${MQTT_TARGET_PASSWORD}
-      MQTT_INPUT_TOPIC: ${MQTT_INPUT_TOPIC:-meshcore/raw/#}
+      MQTT_INPUT_TOPIC: ${MQTT_INPUT_TOPIC:-meshcore/#}
       MQTT_OUTPUT_PREFIX: ${MQTT_OUTPUT_PREFIX:-meshcore/feed}
       DEDUP_TTL_SECONDS: ${DEDUP_TTL_SECONDS:-600}
       DEDUP_KEY_MODE: ${DEDUP_KEY_MODE:-topic_payload}

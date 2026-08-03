@@ -1,8 +1,4 @@
-user observer
-topic write meshcore/raw/#
-
-user dedup-reader
-topic read meshcore/raw/#
+user feed-health
 topic read $SYS/broker/version
 
 user dedup-writer

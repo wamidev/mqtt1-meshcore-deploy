@@ -17,8 +17,15 @@ set -a
 # shellcheck disable=SC1091
 . ./.env
 set +a
-[ "$MQTT_LOCAL_DEDUP_READER_PASSWORD" = "$DEDUP_READER_PASSWORD" ] || {
-  echo "MQTT_LOCAL_DEDUP_READER_PASSWORD must equal DEDUP_READER_PASSWORD." >&2
+
+for variable in PUBLIC_BROKER_READER_PASSWORD MQTT_SOURCE_1_PASSWORD MQTT_SOURCE_2_PASSWORD; do
+  eval "value=\${$variable:-}"
+  case "$value" in
+    *:*) echo "$variable must not contain a colon." >&2; exit 1 ;;
+  esac
+done
+[ "$MQTT_LOCAL_DEDUP_READER_PASSWORD" = "$FEED_HEALTH_PASSWORD" ] || {
+  echo "MQTT_LOCAL_DEDUP_READER_PASSWORD must equal FEED_HEALTH_PASSWORD." >&2
   exit 1
 }
 [ "$MQTT_TARGET_PASSWORD" = "$DEDUP_WRITER_PASSWORD" ] || {
@@ -29,9 +36,13 @@ set +a
 case "${DEPLOY_MODE:-}" in
   mqtt1-proxy)
     COMPOSE_OVERRIDE=docker-compose.mqtt1.yml
+    [ "$AUTH_EXPECTED_AUDIENCE" = "mqtt1.meshcore.cz" ] || { echo "MQTT1 audience must be mqtt1.meshcore.cz." >&2; exit 1; }
+    [ "$PUBLIC_BROKER_READER_PASSWORD" = "$MQTT_SOURCE_1_PASSWORD" ] || { echo "PUBLIC_BROKER_READER_PASSWORD must equal MQTT_SOURCE_1_PASSWORD on MQTT1." >&2; exit 1; }
     ;;
   mqtt2-tunnel)
     COMPOSE_OVERRIDE=docker-compose.mqtt2.yml
+    [ "$AUTH_EXPECTED_AUDIENCE" = "mqtt2.meshcore.website" ] || { echo "MQTT2 audience must be mqtt2.meshcore.website." >&2; exit 1; }
+    [ "$PUBLIC_BROKER_READER_PASSWORD" = "$MQTT_SOURCE_2_PASSWORD" ] || { echo "PUBLIC_BROKER_READER_PASSWORD must equal MQTT_SOURCE_2_PASSWORD on MQTT2." >&2; exit 1; }
     [ -n "${CLOUDFLARE_TUNNEL_TOKEN:-}" ] || { echo "Missing CLOUDFLARE_TUNNEL_TOKEN." >&2; exit 1; }
     ;;
   *)

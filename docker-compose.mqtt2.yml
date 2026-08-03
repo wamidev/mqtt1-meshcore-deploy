@@ -3,8 +3,8 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     depends_on:
-      mosquitto:
-        condition: service_healthy
+      public-broker:
+        condition: service_started
     expose:
       - "80"
     environment:

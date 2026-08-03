@@ -17,7 +17,7 @@ set -a
 . "$ENV_FILE"
 set +a
 
-for variable in OBSERVER_PASSWORD DEDUP_READER_PASSWORD DEDUP_WRITER_PASSWORD CORESCOPE_RO_PASSWORD MAP_RO_PASSWORD; do
+for variable in FEED_HEALTH_PASSWORD DEDUP_WRITER_PASSWORD CORESCOPE_RO_PASSWORD MAP_RO_PASSWORD; do
   eval "value=\${$variable:-}"
   case "$value" in
     ""|CHANGE_ME*) echo "Set a real value for $variable in .env." >&2; exit 1 ;;
@@ -40,8 +40,7 @@ add_user() {
     mosquitto_passwd /mosquitto/config/passwd "$username"
 }
 
-add_user observer "$OBSERVER_PASSWORD"
-add_user dedup-reader "$DEDUP_READER_PASSWORD"
+add_user feed-health "$FEED_HEALTH_PASSWORD"
 add_user dedup-writer "$DEDUP_WRITER_PASSWORD"
 add_user corescope-ro "$CORESCOPE_RO_PASSWORD"
 add_user map-ro "$MAP_RO_PASSWORD"
