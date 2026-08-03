@@ -13,7 +13,7 @@ MeshCore integraci v Home Assistantu, která ji nastavuje pevně.
 
 Deduplikovaný read-only feed pro vzdálený CoreScope nebo mapu je dostupný na
 `wss://<doména>/feed`. Vyžaduje účet `corescope-ro` nebo `map-ro` a dovoluje
-odebírat pouze `meshcore/feed/#`.
+odebírat pouze `meshcore/#`.
 
 Běžný HTTP požadavek prohlížeče na `/` vrací místní identifikaci MQTT uzlu.
 Nepřesměrovává na web upstream projektu. Cesty `/mqtt` a `/feed` bez WebSocket
@@ -66,7 +66,7 @@ V `.env` nastavte všechny hodnoty `CHANGE_ME`. Pevně ponechte:
 PUBLIC_DOMAIN=mqtt2.meshcore.website
 AUTH_EXPECTED_AUDIENCE=mqtt2.meshcore.website
 MQTT_INPUT_TOPIC=meshcore/#
-MQTT_OUTPUT_PREFIX=meshcore/feed
+MQTT_OUTPUT_PREFIX=meshcore
 ```
 
 Cloudflare Tunnel nastavte na službu `http://nginx:80` a jeho token vložte do
@@ -88,7 +88,7 @@ V `.env` nastavte všechny hodnoty `CHANGE_ME`. Pevně ponechte:
 PUBLIC_DOMAIN=mqtt1.meshcore.cz
 AUTH_EXPECTED_AUDIENCE=mqtt1.meshcore.cz
 MQTT_INPUT_TOPIC=meshcore/#
-MQTT_OUTPUT_PREFIX=meshcore/feed
+MQTT_OUTPUT_PREFIX=meshcore
 ```
 
 Lokální Nginx naslouchá na portu 80. Nadřazený veřejný Nginx musí proxyovat
@@ -182,11 +182,15 @@ vlastní token s odpovídající hodnotou `aud`.
 ```text
 veřejný vstup:  meshcore/{lokace}/{public_key}/...
 odběr workeru:  meshcore/#
-interní výstup: meshcore/feed/{lokace}/{public_key}/...
+interní výstup: meshcore/{lokace}/{public_key}/...
 ```
 
+Worker zachovává původní strukturu tématu. Deduplikovaný feed je oddělený
+samostatným brokerem a WebSocket cestou `/feed`, nikoli segmentem `feed` uvnitř
+tématu. CoreScope tak správně vyhodnotí `{lokace}` jako region.
+
 `dedup-reader` je read-only účet veřejných brokerů. `dedup-writer` smí zapisovat
-jen `meshcore/feed/#`; `corescope-ro` a `map-ro` jej smějí jen číst.
+jen `meshcore/#`; `corescope-ro` a `map-ro` jej smějí jen číst.
 
 Příklad vzdáleného CoreScope:
 
@@ -197,7 +201,7 @@ Příklad vzdáleného CoreScope:
   "username": "corescope-ro",
   "password": "HESLO_Z_CORESCOPE_RO_PASSWORD",
   "rejectUnauthorized": true,
-  "topics": ["meshcore/feed/#"]
+  "topics": ["meshcore/#"]
 }
 ```
 

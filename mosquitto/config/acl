@@ -2,10 +2,10 @@ user feed-health
 topic read $SYS/broker/version
 
 user dedup-writer
-topic write meshcore/feed/#
+topic write meshcore/#
 
 user corescope-ro
-topic read meshcore/feed/#
+topic read meshcore/#
 
 user map-ro
-topic read meshcore/feed/#
+topic read meshcore/#
