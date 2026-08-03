@@ -51,11 +51,47 @@ df -h /
 
 ### 2. Stažení deployment repozitáře
 
-```sh
-cd ~
-git clone https://github.com/mesh-cz/meshcore-mqtt-stack-deploy.git
-cd meshcore-mqtt-stack-deploy
+Deployment, lokální konfigurace i persistentní data MeshCore jsou uložené pod
+jednou pevnou cestou:
+
+```text
+/opt/meshcore-mqtt-stack
 ```
+
+Vytvořte cílový adresář, předejte jej aktuálnímu administračnímu účtu a
+naklonujte repozitář přímo do něj:
+
+```sh
+sudo mkdir -p /opt/meshcore-mqtt-stack
+sudo chown "$USER":"$USER" /opt/meshcore-mqtt-stack
+git clone https://github.com/mesh-cz/meshcore-mqtt-stack-deploy.git /opt/meshcore-mqtt-stack
+cd /opt/meshcore-mqtt-stack
+```
+
+Pokud je repozitář privátní, použijte při HTTPS přihlášení samostatný
+fine-grained token pouze s oprávněním `Contents: Read-only` pro tento repozitář.
+Token nevkládejte přímo do URL ani jej neukládejte do repozitáře.
+
+### Umístění konfigurace a dat
+
+Po nasazení bude důležitý obsah uložen následovně:
+
+```text
+/opt/meshcore-mqtt-stack/
+├── .git/                         deployment repozitář
+├── .env                          lokální konfigurace a tajemství
+├── mosquitto/config/passwd       MQTT password file
+├── mosquitto/data/               persistentní data Mosquitta
+├── mosquitto/log/                logy Mosquitta
+├── nginx/                        konfigurace interního Nginxu
+└── scripts/                      instalační a provozní skripty
+```
+
+Docker Engine si ponechává obnovitelné image, vrstvy a interní metadata ve
+standardní cestě `/var/lib/docker`. Tento adresář nepřesouvejte do Git
+repozitáře. Pro zálohu MeshCore jsou podstatné lokální soubory v
+`/opt/meshcore-mqtt-stack`, především `.env`, `mosquitto/config/passwd` a
+`mosquitto/data/`.
 
 ### 3. Instalace Dockeru
 
@@ -311,9 +347,12 @@ Pokud aplikace běží mimo Docker síť, použijte veřejný WSS endpoint s rea
 
 ## Aktualizace
 
-Nejdříve bezpečně zálohujte `.env` a password file mimo repozitář. Potom:
+Přejděte do pevného instalačního adresáře a nejdříve bezpečně zálohujte `.env`,
+password file a podle provozních požadavků také `mosquitto/data/` mimo
+repozitář. Potom:
 
 ```sh
+cd /opt/meshcore-mqtt-stack
 git pull --ff-only
 ./scripts/compose.sh pull
 ./scripts/compose.sh up -d
