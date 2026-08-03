@@ -8,6 +8,9 @@ proxy, MQTT2 používá Cloudflare Tunnel.
 | MQTT1 | `wss://mqtt1.meshcore.cz/mqtt` | nadřazený Nginx | `mqtt1.meshcore.cz` |
 | MQTT2 | `wss://mqtt2.meshcore.website/mqtt` | Cloudflare Tunnel | `mqtt2.meshcore.website` |
 
+Oba endpointy přijímají WebSocket na `/mqtt` i na `/`. Cesta `/` je nutná pro
+MeshCore integraci v Home Assistantu, která ji nastavuje pevně.
+
 ## Co na uzlu běží
 
 - `public-broker`: veřejný WebSocket broker ověřující MeshCore Ed25519 tokeny;
