@@ -133,6 +133,9 @@ startu přepne na neprivilegovaného uživatele `mosquitto`.
 `start.sh` odmítne nesprávnou audience, nezměněné `CHANGE_ME` hodnoty a
 neshodující se lokální hesla.
 
+Healthcheck Nginxu posílá interně hlavičku `Host` odpovídající `PUBLIC_DOMAIN`,
+aby požadavek `/health` neobsloužil výchozí server z image Nginxu.
+
 ## Nastavení observerů
 
 Každý fyzický klient má dva aktivní observer profily:
