@@ -15,6 +15,10 @@ Deduplikovaný read-only feed pro vzdálený CoreScope nebo mapu je dostupný na
 `wss://<doména>/feed`. Vyžaduje účet `corescope-ro` nebo `map-ro` a dovoluje
 odebírat pouze `meshcore/feed/#`.
 
+Běžný HTTP požadavek prohlížeče na `/` vrací místní identifikaci MQTT uzlu.
+Nepřesměrovává na web upstream projektu. Cesty `/mqtt` a `/feed` bez WebSocket
+upgrade vracejí HTTP `426`.
+
 ## Co na uzlu běží
 
 - `public-broker`: veřejný WebSocket broker ověřující MeshCore Ed25519 tokeny;
