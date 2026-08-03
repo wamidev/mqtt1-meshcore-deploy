@@ -1,0 +1,70 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    expose:
+      - "1883"
+      - "9001"
+    environment:
+      MQTT_HEALTH_PASSWORD: ${MQTT_LOCAL_DEDUP_READER_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -u dedup-reader -P '$${MQTT_HEALTH_PASSWORD}' -t '$$SYS/broker/version' -C 1 -W 5 >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks: [meshcore_mqtt]
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./secrets/nginx:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider --no-check-certificate https://127.0.0.1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks: [meshcore_mqtt]
+
+  dedup-worker:
+    image: ${DEDUP_WORKER_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    environment:
+      MQTT_SOURCE_1_URL: ${MQTT_SOURCE_1_URL}
+      MQTT_SOURCE_1_USERNAME: ${MQTT_SOURCE_1_USERNAME}
+      MQTT_SOURCE_1_PASSWORD: ${MQTT_SOURCE_1_PASSWORD}
+      MQTT_SOURCE_2_URL: ${MQTT_SOURCE_2_URL}
+      MQTT_SOURCE_2_USERNAME: ${MQTT_SOURCE_2_USERNAME}
+      MQTT_SOURCE_2_PASSWORD: ${MQTT_SOURCE_2_PASSWORD}
+      MQTT_TARGET_URL: ${MQTT_TARGET_URL}
+      MQTT_TARGET_USERNAME: ${MQTT_TARGET_USERNAME}
+      MQTT_TARGET_PASSWORD: ${MQTT_TARGET_PASSWORD}
+      MQTT_INPUT_TOPIC: ${MQTT_INPUT_TOPIC:-meshcore/raw/#}
+      MQTT_OUTPUT_PREFIX: ${MQTT_OUTPUT_PREFIX:-meshcore/feed}
+      DEDUP_TTL_SECONDS: ${DEDUP_TTL_SECONDS:-600}
+      DEDUP_KEY_MODE: ${DEDUP_KEY_MODE:-topic_payload}
+      MQTT_QOS: ${MQTT_QOS:-1}
+      MQTT_PUBLISH_TIMEOUT_SECONDS: ${MQTT_PUBLISH_TIMEOUT_SECONDS:-10}
+      MQTT_CLIENT_ID_PREFIX: ${MQTT_CLIENT_ID_PREFIX:-meshcore-dedup}
+    networks: [meshcore_mqtt]
+
+networks:
+  meshcore_mqtt:

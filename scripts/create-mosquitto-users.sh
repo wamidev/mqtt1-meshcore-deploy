@@ -1,0 +1,49 @@
+#!/usr/bin/env sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+DEPLOY_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+ENV_FILE="$DEPLOY_DIR/.env"
+CONFIG_DIR="$DEPLOY_DIR/mosquitto/config"
+PASSWD_FILE="$CONFIG_DIR/passwd"
+
+if [ ! -f "$ENV_FILE" ]; then
+  echo "Missing $ENV_FILE. Copy .env.example to .env and edit it first." >&2
+  exit 1
+fi
+
+set -a
+# shellcheck disable=SC1090
+. "$ENV_FILE"
+set +a
+
+for variable in OBSERVER_PASSWORD DEDUP_READER_PASSWORD DEDUP_WRITER_PASSWORD CORESCOPE_RO_PASSWORD MAP_RO_PASSWORD; do
+  eval "value=\${$variable:-}"
+  case "$value" in
+    ""|CHANGE_ME*) echo "Set a real value for $variable in .env." >&2; exit 1 ;;
+  esac
+done
+
+mkdir -p "$CONFIG_DIR"
+if [ -e "$PASSWD_FILE" ]; then
+  echo "$PASSWD_FILE already exists; refusing to overwrite it." >&2
+  exit 1
+fi
+touch "$PASSWD_FILE"
+chmod 600 "$PASSWD_FILE"
+
+add_user() {
+  username=$1
+  password=$2
+  printf '%s\n%s\n' "$password" "$password" | docker run --rm -i \
+    -v "$CONFIG_DIR:/mosquitto/config" eclipse-mosquitto:2 \
+    mosquitto_passwd /mosquitto/config/passwd "$username"
+}
+
+add_user observer "$OBSERVER_PASSWORD"
+add_user dedup-reader "$DEDUP_READER_PASSWORD"
+add_user dedup-writer "$DEDUP_WRITER_PASSWORD"
+add_user corescope-ro "$CORESCOPE_RO_PASSWORD"
+add_user map-ro "$MAP_RO_PASSWORD"
+
+echo "Created $PASSWD_FILE with mode 600."

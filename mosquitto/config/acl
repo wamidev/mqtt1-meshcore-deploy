@@ -1,0 +1,15 @@
+user observer
+topic write meshcore/raw/#
+
+user dedup-reader
+topic read meshcore/raw/#
+topic read $SYS/broker/version
+
+user dedup-writer
+topic write meshcore/feed/#
+
+user corescope-ro
+topic read meshcore/feed/#
+
+user map-ro
+topic read meshcore/feed/#

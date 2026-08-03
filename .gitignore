@@ -1,0 +1,8 @@
+.env
+mosquitto/config/passwd
+mosquitto/data/
+mosquitto/log/
+secrets/
+*.pem
+*.key
+*.crt
