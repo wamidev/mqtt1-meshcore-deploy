@@ -1,12 +1,30 @@
 # Nasazení MeshCore MQTT serverů
 
-Deployment provozuje dva nezávislé uzly. MQTT1 používá veřejný nadřazený Nginx
-proxy, MQTT2 používá Cloudflare Tunnel.
+Deployment je navržený pro dva nezávislé uzly. MQTT1 používá veřejný nadřazený
+Nginx proxy, MQTT2 používá Cloudflare Tunnel.
 
-| Uzel | Endpoint | Přístup | Token audience |
-|---|---|---|---|
-| MQTT1 | `wss://mqtt1.meshcore.cz/mqtt` | nadřazený Nginx | `mqtt1.meshcore.cz` |
-| MQTT2 | `wss://mqtt2.meshcore.website/mqtt` | Cloudflare Tunnel | `mqtt2.meshcore.website` |
+| Uzel | Endpoint | Přístup | Token audience | Stav |
+|---|---|---|---|---|
+| MQTT1 | `wss://mqtt1.meshcore.cz/mqtt` | nadřazený Nginx | `mqtt1.meshcore.cz` | zatím nenasazený |
+| MQTT2 | `wss://mqtt2.meshcore.website/mqtt` | Cloudflare Tunnel | `mqtt2.meshcore.website` | v provozu |
+
+## Aktuální stav MQTT2
+
+Stav k 4. 8. 2026:
+
+- produkční deploy repozitář je naklonovaný přímo do
+  `/opt/meshcore-mqtt-stack`;
+- všechny kontejnery `public-broker`, `feed-broker`, `dedup-worker`, `nginx` a
+  `cloudflared` běží;
+- observeři se připojují tokenem na `wss://mqtt2.meshcore.website/mqtt` nebo na
+  kořenovou WebSocket cestu `/`;
+- CoreScope je připojený na `wss://mqtt2.meshcore.website/feed` jako
+  `corescope-ro`, odebírá `meshcore/#` a regiony čte z nativních topiců;
+- než bude nasazený nový MQTT1, používá worker jako `MQTT_SOURCE_1_URL`
+  `ws://mapa.meshcore.cz:1884/`; druhým zdrojem je
+  `wss://mqtt2.meshcore.website/mqtt`;
+- stará data s chybným regionem `FEED` patří do databáze CoreScope, nikoli do
+  Mosquitta; worker publikuje s `retain=false`.
 
 Oba endpointy přijímají WebSocket na `/mqtt` i na `/`. Cesta `/` je nutná pro
 MeshCore integraci v Home Assistantu, která ji nastavuje pevně.
@@ -29,7 +47,8 @@ obecné `404 Not found`.
 - `public-broker`: veřejný WebSocket broker ověřující MeshCore Ed25519 tokeny;
 - `feed-broker`: interní Mosquitto s deduplikovaným feedem;
 - `dedup-worker`: čte oba veřejné brokery a zapisuje do lokálního feedu;
-- `nginx`: WebSocket proxy pouze před `public-broker`;
+- `nginx`: HTTP/WebSocket proxy před `public-broker` a read-only cestou
+  `/feed` interního brokeru;
 - `cloudflared`: pouze na MQTT2.
 
 Observer účet ani observer heslo se nevytváří. Každý klient podepisuje svůj
@@ -37,15 +56,16 @@ token vlastní MeshCore identitou. Statická hesla jsou pouze pro interní služ
 
 ## Požadavky a adresáře
 
-Doporučeno: Ubuntu Server 24.04 LTS, 4 GB RAM a 40 GB disk. Repozitář,
-konfigurace i aplikační data jsou v `/opt/meshcore-mqtt-stack`:
+Doporučeno: Ubuntu Server 24.04 LTS, 4 GB RAM a 40 GB disk. Produkční deploy
+repozitář, konfigurace i aplikační data jsou přímo v
+`/opt/meshcore-mqtt-stack`:
 
 ```text
-/opt/meshcore-mqtt-stack/deploy/.env
-/opt/meshcore-mqtt-stack/deploy/public-broker/data/
-/opt/meshcore-mqtt-stack/deploy/mosquitto/config/passwd
-/opt/meshcore-mqtt-stack/deploy/mosquitto/data/
-/opt/meshcore-mqtt-stack/deploy/mosquitto/log/
+/opt/meshcore-mqtt-stack/.env
+/opt/meshcore-mqtt-stack/public-broker/data/
+/opt/meshcore-mqtt-stack/mosquitto/config/passwd
+/opt/meshcore-mqtt-stack/mosquitto/data/
+/opt/meshcore-mqtt-stack/mosquitto/log/
 ```
 
 Interní úložiště Docker Enginu zůstává standardně v `/var/lib/docker`.
@@ -55,7 +75,6 @@ Interní úložiště Docker Enginu zůstává standardně v `/var/lib/docker`.
 ```bash
 cd /opt/meshcore-mqtt-stack
 git pull --ff-only
-cd deploy
 cp .env.mqtt2.example .env
 chmod 600 .env
 ```
@@ -72,12 +91,23 @@ MQTT_OUTPUT_PREFIX=meshcore
 Cloudflare Tunnel nastavte na službu `http://nginx:80` a jeho token vložte do
 `CLOUDFLARE_TUNNEL_TOKEN`.
 
+Dočasné zapojení před nasazením MQTT1 používá:
+
+```env
+MQTT_SOURCE_1_URL=ws://mapa.meshcore.cz:1884/
+MQTT_SOURCE_1_USERNAME=mapa
+MQTT_SOURCE_2_URL=wss://mqtt2.meshcore.website/mqtt
+MQTT_SOURCE_2_USERNAME=dedup-reader
+```
+
+Hesla zůstávají pouze v `.env`. Po spuštění MQTT1 se první URL a přihlašovací
+údaje nahradí účtem `dedup-reader` nového MQTT1.
+
 ## Instalace MQTT1
 
 ```bash
 cd /opt/meshcore-mqtt-stack
 git pull --ff-only
-cd deploy
 cp .env.mqtt1.example .env
 chmod 600 .env
 ```
@@ -219,10 +249,10 @@ package musí být dostupný serverům.
 Zálohujte minimálně:
 
 ```text
-/opt/meshcore-mqtt-stack/deploy/.env
-/opt/meshcore-mqtt-stack/deploy/mosquitto/config/passwd
-/opt/meshcore-mqtt-stack/deploy/mosquitto/data/
-/opt/meshcore-mqtt-stack/deploy/public-broker/data/
+/opt/meshcore-mqtt-stack/.env
+/opt/meshcore-mqtt-stack/mosquitto/config/passwd
+/opt/meshcore-mqtt-stack/mosquitto/data/
+/opt/meshcore-mqtt-stack/public-broker/data/
 ```
 
 `.env` ani `passwd` neukládejte do Gitu.
