@@ -14,8 +14,8 @@ Stav k 4. 8. 2026:
 
 - produkční deploy repozitář je naklonovaný přímo do
   `/opt/meshcore-mqtt-stack`;
-- všechny kontejnery `public-broker`, `feed-broker`, `dedup-worker`, `nginx` a
-  `cloudflared` běží;
+- produkční verze stacku obsahuje kontejnery `public-broker`, `feed-broker`,
+  `dedup-worker`, `monitor`, `nginx` a `cloudflared`;
 - observeři se připojují tokenem na `wss://mqtt2.meshcore.website/mqtt` nebo na
   kořenovou WebSocket cestu `/`;
 - CoreScope je připojený na `wss://mqtt2.meshcore.website/feed` jako
@@ -47,6 +47,8 @@ obecné `404 Not found`.
 - `public-broker`: veřejný WebSocket broker ověřující MeshCore Ed25519 tokeny;
 - `feed-broker`: interní Mosquitto s deduplikovaným feedem;
 - `dedup-worker`: čte oba veřejné brokery a zapisuje do lokálního feedu;
+- `mqtt-monitor`: ukládá agregované provozní statistiky a poskytuje interní
+  administrační web;
 - `nginx`: HTTP/WebSocket proxy před `public-broker` a read-only cestou
   `/feed` interního brokeru;
 - `cloudflared`: pouze na MQTT2.
@@ -66,6 +68,7 @@ repozitář, konfigurace i aplikační data jsou přímo v
 /opt/meshcore-mqtt-stack/mosquitto/config/passwd
 /opt/meshcore-mqtt-stack/mosquitto/data/
 /opt/meshcore-mqtt-stack/mosquitto/log/
+/opt/meshcore-mqtt-stack/monitor/data/
 ```
 
 Interní úložiště Docker Enginu zůstává standardně v `/var/lib/docker`.
@@ -87,10 +90,17 @@ AUTH_EXPECTED_AUDIENCE=mqtt2.meshcore.website
 MQTT_INPUT_TOPIC=meshcore/#
 MQTT_OUTPUT_PREFIX=meshcore
 DEDUP_KEY_MODE=topic_raw
+MONITOR_DOMAIN=monitor-mqtt2.meshcore.website
+MONITOR_EVENTS_ENABLED=true
+MONITOR_TOPIC_PREFIX=meshcore-monitor
+MONITOR_RETENTION_DAYS=30
+MONITOR_ACTIVE_WINDOW_SECONDS=180
 ```
 
-Cloudflare Tunnel nastavte na službu `http://nginx:80` a jeho token vložte do
-`CLOUDFLARE_TUNNEL_TOKEN`.
+Cloudflare Tunnel pro MQTT endpoint nastavte na službu `http://nginx:80` a jeho
+token vložte do `CLOUDFLARE_TUNNEL_TOKEN`. Monitorovací hostname přidejte do
+tunelu až po vytvoření Cloudflare Access aplikace podle části „Monitoring
+MQTT2“.
 
 Dočasné zapojení před nasazením MQTT1 používá:
 
@@ -153,6 +163,7 @@ Pro interní feed musí platit:
 ```text
 MQTT_LOCAL_DEDUP_READER_PASSWORD = FEED_HEALTH_PASSWORD
 MQTT_TARGET_PASSWORD             = DEDUP_WRITER_PASSWORD
+MONITOR_MQTT_PASSWORD            = MONITOR_RO_PASSWORD
 ```
 
 Hodnoty nesmí obsahovat dvojtečku, protože konfigurace subscriberu veřejného
@@ -164,9 +175,17 @@ Vytvoření účtů interního Mosquitta:
 ./scripts/create-mosquitto-users.sh
 ```
 
-Vytvoří se pouze účty `feed-health`, `dedup-writer`, `corescope-ro` a `map-ro`.
+Vytvoří se pouze účty `feed-health`, `dedup-writer`, `corescope-ro`, `map-ro` a
+`monitor-ro`.
 Password file musí vlastnit `root:root` s režimem `644`, protože kontejner po
 startu přepne na neprivilegovaného uživatele `mosquitto`.
+
+Na již běžícím serveru celý password file nevytvářejte znovu. Po doplnění
+`MONITOR_RO_PASSWORD` do `.env` přidejte pouze nový účet:
+
+```bash
+./scripts/create-monitor-user.sh
+```
 
 ## Spuštění
 
@@ -176,6 +195,7 @@ startu přepne na neprivilegovaného uživatele `mosquitto`.
 ./scripts/compose.sh logs --tail=100 public-broker
 ./scripts/compose.sh logs --tail=100 feed-broker
 ./scripts/compose.sh logs --tail=100 dedup-worker
+./scripts/compose.sh logs --tail=100 monitor
 ```
 
 `start.sh` odmítne nesprávnou audience, nezměněné `CHANGE_ME` hodnoty a
@@ -232,7 +252,9 @@ Minutové statistiky obsahují celkové hodnoty i počítadla pro `source1` a
 ponechte tuto hodnotu prázdnou.
 
 `dedup-reader` je read-only účet veřejných brokerů. `dedup-writer` smí zapisovat
-jen `meshcore/#`; `corescope-ro` a `map-ro` jej smějí jen číst.
+do `meshcore/#` a interního `meshcore-monitor/#`; `corescope-ro` a `map-ro`
+smějí číst pouze `meshcore/#`. Samostatný `monitor-ro` smí číst jen
+`meshcore-monitor/#` a `$SYS/#`.
 
 Příklad vzdáleného CoreScope:
 
@@ -247,6 +269,75 @@ Příklad vzdáleného CoreScope:
 }
 ```
 
+## Monitoring MQTT2
+
+Monitorovací web běží v kontejneru `monitor` na interním portu `8080`. Port
+není namapovaný na hostitele. Nginx jej zpřístupňuje pouze pod hostname:
+
+```text
+https://monitor-mqtt2.meshcore.website
+```
+
+Dashboard zobrazuje:
+
+- spojení workeru ke `source1`, `source2` a internímu feedu;
+- aktivní observery, jejich region, veřejný klíč a poslední aktivitu;
+- počet přijatých, předaných a duplicitních zpráv po observerech a zdrojích;
+- množství přenesených dat a druhy topiců;
+- celkový počet klientů feed-brokeru a známé relace `corescope-ro`, `map-ro` a
+  interních služeb.
+
+Protože WebSocket provoz prochází přes Nginx, Mosquitto u vzdálených klientů
+obvykle vidí interní Docker adresu Nginxu. Spolehlivě dostupné jsou MQTT client
+ID, účet, stav relace a čas připojení; veřejnou IP nelze na této vrstvě bezpečně
+přiřadit ke konkrétnímu MQTT client ID.
+
+Monitor neukládá původní MQTT payloady, `raw` packet, tokeny, hesla ani privátní
+klíče. SQLite databáze obsahuje pouze agregované statistiky a standardně maže
+pětiminutové časové řady starší než 30 dnů.
+
+Pro aktualizaci existujícího MQTT2 serveru zachovejte současnou `.env` a
+doplňte do ní nové hodnoty podle `.env.mqtt2.example`. Pro
+`MONITOR_MQTT_PASSWORD` a `MONITOR_RO_PASSWORD` použijte stejné nové silné
+heslo. Potom:
+
+```bash
+cd /opt/meshcore-mqtt-stack
+./scripts/create-monitor-user.sh
+./scripts/compose.sh stop nginx cloudflared
+./scripts/compose.sh restart feed-broker
+./scripts/start.sh
+```
+
+Zastavení Nginxu během prvního restartu feed-brokeru zajistí, že monitor zachytí
+nová připojení vzdálených feed klientů. Interní kontrola webu:
+
+```bash
+./scripts/compose.sh exec nginx wget -qO- \
+  --header="Host: $MONITOR_DOMAIN" \
+  http://127.0.0.1/api/health
+```
+
+Očekávaný výsledek obsahuje `"status":"ok"`. Před přidáním monitorovacího
+hostname do tunelu nejprve vytvořte Cloudflare Access aplikaci. Access nesmí
+chránit celý hostname `mqtt2.meshcore.website`, protože MQTT klienti neumějí
+browserové přihlášení Cloudflare Access.
+
+V Cloudflare Zero Trust vytvořte aplikaci typu `Self-hosted` pro jediný hostname
+`monitor-mqtt2.meshcore.website`. Doporučená `Allow` politika používá konkrétní
+správcovské e-maily jako `Include` a povolené veřejné IPv4 `/32` a IPv6 `/128`
+jako `Require`. Uživatel tak musí splnit přihlášení i povolenou zdrojovou IP.
+Teprve potom v existujícím Cloudflare Tunnel přidejte další public hostname:
+
+```text
+Hostname: monitor-mqtt2.meshcore.website
+Service:  http://nginx:80
+```
+
+Samostatný DNS záznam není při přidání public hostname přes dashboard obvykle
+potřeba; Cloudflare jej vytvoří pro tunnel. Přístup ověřte jednou z povolené IP
+a jednou například přes mobilní data, odkud musí být zamítnutý.
+
 ## Image tokenového brokeru
 
 Workflow `publish-meshcore-broker.yml` vytváří
@@ -255,6 +346,10 @@ Workflow `publish-meshcore-broker.yml` vytváří
 na konkrétní commit. Lokální patch navíc zabraňuje zapisování autentizačních
 tokenů do logu. Před prvním startem musí workflow úspěšně proběhnout a
 package musí být dostupný serverům.
+
+Workflow `publish-monitor.yml` vytváří
+`ghcr.io/mesh-cz/meshcore-mqtt-monitor`. Také tento package musí být nastavený
+jako veřejný, aby jej produkční server mohl stáhnout bez přihlášení do GHCR.
 
 ## Záloha
 
@@ -265,6 +360,11 @@ Zálohujte minimálně:
 /opt/meshcore-mqtt-stack/mosquitto/config/passwd
 /opt/meshcore-mqtt-stack/mosquitto/data/
 /opt/meshcore-mqtt-stack/public-broker/data/
+/opt/meshcore-mqtt-stack/monitor/data/
 ```
+
+Před kopírováním monitorovací databáze zastavte službu `monitor`, nebo použijte
+SQLite online backup. Samotné kopírování souboru `monitor.db` za běhu nemusí
+zahrnout data uložená ve WAL souboru.
 
 `.env` ani `passwd` neukládejte do Gitu.

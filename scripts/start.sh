@@ -18,6 +18,11 @@ set -a
 . ./.env
 set +a
 
+for variable in MONITOR_IMAGE MONITOR_MQTT_PASSWORD MONITOR_RO_PASSWORD; do
+  eval "value=\${$variable:-}"
+  [ -n "$value" ] || { echo "Missing $variable." >&2; exit 1; }
+done
+
 for variable in PUBLIC_BROKER_READER_PASSWORD MQTT_SOURCE_1_PASSWORD MQTT_SOURCE_2_PASSWORD; do
   eval "value=\${$variable:-}"
   case "$value" in
@@ -32,6 +37,10 @@ done
   echo "MQTT_TARGET_PASSWORD must equal DEDUP_WRITER_PASSWORD." >&2
   exit 1
 }
+[ "$MONITOR_MQTT_PASSWORD" = "$MONITOR_RO_PASSWORD" ] || {
+  echo "MONITOR_MQTT_PASSWORD must equal MONITOR_RO_PASSWORD." >&2
+  exit 1
+}
 
 case "${DEPLOY_MODE:-}" in
   mqtt1-proxy)
@@ -44,6 +53,7 @@ case "${DEPLOY_MODE:-}" in
     [ "$AUTH_EXPECTED_AUDIENCE" = "mqtt2.meshcore.website" ] || { echo "MQTT2 audience must be mqtt2.meshcore.website." >&2; exit 1; }
     [ "$PUBLIC_BROKER_READER_PASSWORD" = "$MQTT_SOURCE_2_PASSWORD" ] || { echo "PUBLIC_BROKER_READER_PASSWORD must equal MQTT_SOURCE_2_PASSWORD on MQTT2." >&2; exit 1; }
     [ -n "${CLOUDFLARE_TUNNEL_TOKEN:-}" ] || { echo "Missing CLOUDFLARE_TUNNEL_TOKEN." >&2; exit 1; }
+    [ "${MONITOR_DOMAIN:-}" = "monitor-mqtt2.meshcore.website" ] || { echo "MQTT2 monitor domain must be monitor-mqtt2.meshcore.website." >&2; exit 1; }
     ;;
   *)
     echo "DEPLOY_MODE must be mqtt1-proxy or mqtt2-tunnel." >&2

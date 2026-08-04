@@ -78,6 +78,37 @@ services:
       MQTT_QOS: ${MQTT_QOS:-1}
       MQTT_PUBLISH_TIMEOUT_SECONDS: ${MQTT_PUBLISH_TIMEOUT_SECONDS:-10}
       MQTT_CLIENT_ID_PREFIX: ${MQTT_CLIENT_ID_PREFIX:-meshcore-dedup}
+      MONITOR_EVENTS_ENABLED: ${MONITOR_EVENTS_ENABLED:-true}
+      MONITOR_TOPIC_PREFIX: ${MONITOR_TOPIC_PREFIX:-meshcore-monitor}
+    networks: [meshcore_mqtt]
+
+  monitor:
+    image: ${MONITOR_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      feed-broker:
+        condition: service_healthy
+      dedup-worker:
+        condition: service_started
+    environment:
+      MONITOR_MQTT_HOST: feed-broker
+      MONITOR_MQTT_PORT: 1883
+      MONITOR_MQTT_USERNAME: monitor-ro
+      MONITOR_MQTT_PASSWORD: ${MONITOR_MQTT_PASSWORD}
+      MONITOR_TOPIC_PREFIX: ${MONITOR_TOPIC_PREFIX:-meshcore-monitor}
+      MONITOR_DB_PATH: /data/monitor.db
+      MONITOR_RETENTION_DAYS: ${MONITOR_RETENTION_DAYS:-30}
+      MONITOR_ACTIVE_WINDOW_SECONDS: ${MONITOR_ACTIVE_WINDOW_SECONDS:-180}
+    volumes:
+      - ./monitor/data:/data
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     networks: [meshcore_mqtt]
 
 networks:

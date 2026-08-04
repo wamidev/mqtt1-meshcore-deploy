@@ -88,3 +88,35 @@ server {
         return 404 "Not found\n";
     }
 }
+
+# Administrative monitoring is published on a separate hostname. Cloudflare
+# Access must protect this hostname before it is added to the tunnel.
+server {
+    listen 80;
+    server_name ${MONITOR_DOMAIN};
+    server_tokens off;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Referrer-Policy no-referrer always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Cache-Control "no-store" always;
+
+    if ($host != ${MONITOR_DOMAIN}) {
+        return 404 "Not found\n";
+    }
+
+    location / {
+        proxy_pass http://monitor:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $http_cf_connecting_ip;
+        proxy_set_header X-Forwarded-For $http_cf_connecting_ip;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Cf-Access-Jwt-Assertion $http_cf_access_jwt_assertion;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_buffering off;
+        proxy_hide_header Server;
+    }
+}

@@ -3,6 +3,11 @@ topic read $SYS/broker/version
 
 user dedup-writer
 topic write meshcore/#
+topic write meshcore-monitor/#
+
+user monitor-ro
+topic read meshcore-monitor/#
+topic read $SYS/#
 
 user corescope-ro
 topic read meshcore/#

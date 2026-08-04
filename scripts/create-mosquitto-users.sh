@@ -17,7 +17,7 @@ set -a
 . "$ENV_FILE"
 set +a
 
-for variable in FEED_HEALTH_PASSWORD DEDUP_WRITER_PASSWORD CORESCOPE_RO_PASSWORD MAP_RO_PASSWORD; do
+for variable in FEED_HEALTH_PASSWORD DEDUP_WRITER_PASSWORD CORESCOPE_RO_PASSWORD MAP_RO_PASSWORD MONITOR_RO_PASSWORD; do
   eval "value=\${$variable:-}"
   case "$value" in
     ""|CHANGE_ME*) echo "Set a real value for $variable in .env." >&2; exit 1 ;;
@@ -44,6 +44,7 @@ add_user feed-health "$FEED_HEALTH_PASSWORD"
 add_user dedup-writer "$DEDUP_WRITER_PASSWORD"
 add_user corescope-ro "$CORESCOPE_RO_PASSWORD"
 add_user map-ro "$MAP_RO_PASSWORD"
+add_user monitor-ro "$MONITOR_RO_PASSWORD"
 
 docker run --rm --user 0:0 --entrypoint sh \
   -v "$CONFIG_DIR:/mosquitto/config" eclipse-mosquitto:2 \
