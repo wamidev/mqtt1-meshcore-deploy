@@ -221,24 +221,15 @@ Worker zachovává původní strukturu tématu. Deduplikovaný feed je oddělen�
 samostatným brokerem a WebSocket cestou `/feed`, nikoli segmentem `feed` uvnitř
 tématu. CoreScope tak správně vyhodnotí `{lokace}` jako region.
 
-Režim `topic_raw` porovnává veřejný klíč observeru, druh zprávy a pole `raw`
-z packet JSON. Region/IATA v topicu se pro deduplikační klíč ignoruje. Rozdílný
-region, hodnoty `timestamp`, `SNR`, `RSSI` ani pořadí JSON polí tak nebrání
-detekci stejného packetu publikovaného jedním observerem na oba zdrojové
-brokery. Do feedu se publikuje nezměněný topic první přijaté kopie.
-Minutové statistiky workeru uvádějí příjem, předání a duplicity zvlášť pro
-`source1` a `source2`; tím lze ověřit, že oba vstupy skutečně dodávají data.
+Režim `topic_raw` rozpoznává kopie packetu podle veřejného klíče observeru,
+druhu zprávy a pole `raw`. Region a proměnlivá JSON metadata se ignorují; první
+doručená kopie se předá do feedu a další se během `DEDUP_TTL_SECONDS` zahodí.
+Zprávy bez platného `raw` se porovnávají přesně podle celého topicu a payloadu.
 
-Pro dočasnou diagnostiku jednoho observeru lze do `.env` nastavit:
-
-```env
-DEDUP_DIAGNOSTIC_PUBLIC_KEY=VEREJNY_KLIC_OBSERVERU
-```
-
-Výběr funguje nezávisle na regionu/IATA v topicu. Worker pro odpovídající zprávy
-loguje zdroj, výsledek `forwarded` nebo `duplicate` a zkrácené SHA otisky celého
-payloadu a pole `raw`. Samotný payload ani přihlašovací údaje se do logu
-nezapisují. Po ukončení testu hodnotu znovu vyprázdněte.
+Minutové statistiky obsahují celkové hodnoty i počítadla pro `source1` a
+`source2`. Pro krátkodobé hledání problému lze nastavit
+`DEDUP_DIAGNOSTIC_PUBLIC_KEY` na celý veřejný klíč observeru. Za běžného provozu
+ponechte tuto hodnotu prázdnou.
 
 `dedup-reader` je read-only účet veřejných brokerů. `dedup-writer` smí zapisovat
 jen `meshcore/#`; `corescope-ro` a `map-ro` jej smějí jen číst.
