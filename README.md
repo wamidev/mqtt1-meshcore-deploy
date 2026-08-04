@@ -16,6 +16,11 @@ Stav k 4. 8. 2026:
   `/opt/meshcore-mqtt-stack`;
 - produkční verze stacku obsahuje kontejnery `public-broker`, `feed-broker`,
   `dedup-worker`, `monitor`, `nginx` a `cloudflared`;
+- monitor je dostupný na `https://monitor-mqtt2.meshcore.website` pouze přes
+  Cloudflare Access; přístup vyžaduje povolený správcovský e-mail i zdrojovou
+  IP adresu;
+- po produkčním nasazení byly `feed-broker`, `monitor` a `nginx` ve stavu
+  `healthy` a interní API potvrdilo připojení monitoru k feed-brokeru;
 - observeři se připojují tokenem na `wss://mqtt2.meshcore.website/mqtt` nebo na
   kořenovou WebSocket cestu `/`;
 - CoreScope je připojený na `wss://mqtt2.meshcore.website/feed` jako
@@ -303,14 +308,16 @@ heslo. Potom:
 
 ```bash
 cd /opt/meshcore-mqtt-stack
+git pull --ff-only
 ./scripts/create-monitor-user.sh
-./scripts/compose.sh stop nginx cloudflared
+./scripts/compose.sh config --quiet
 ./scripts/compose.sh restart feed-broker
 ./scripts/start.sh
 ```
 
-Zastavení Nginxu během prvního restartu feed-brokeru zajistí, že monitor zachytí
-nová připojení vzdálených feed klientů. Interní kontrola webu:
+Skript `create-monitor-user.sh` přidá nebo aktualizuje pouze účet `monitor-ro` a
+zachová všechny existující účty. Restart feed-brokeru načte nový password file,
+ACL, `$SYS` statistiky a connection log topics. Interní kontrola webu:
 
 ```bash
 ./scripts/compose.sh exec nginx wget -qO- \
@@ -318,25 +325,77 @@ nová připojení vzdálených feed klientů. Interní kontrola webu:
   http://127.0.0.1/api/health
 ```
 
-Očekávaný výsledek obsahuje `"status":"ok"`. Před přidáním monitorovacího
+Očekávaný výsledek je:
+
+```json
+{"status":"ok","feed_connected":true}
+```
+
+Před přidáním monitorovacího
 hostname do tunelu nejprve vytvořte Cloudflare Access aplikaci. Access nesmí
 chránit celý hostname `mqtt2.meshcore.website`, protože MQTT klienti neumějí
 browserové přihlášení Cloudflare Access.
 
-V Cloudflare Zero Trust vytvořte aplikaci typu `Self-hosted` pro jediný hostname
-`monitor-mqtt2.meshcore.website`. Doporučená `Allow` politika používá konkrétní
-správcovské e-maily jako `Include` a povolené veřejné IPv4 `/32` a IPv6 `/128`
-jako `Require`. Uživatel tak musí splnit přihlášení i povolenou zdrojovou IP.
-Teprve potom v existujícím Cloudflare Tunnel přidejte další public hostname:
+V Cloudflare Zero Trust zvolte `Access controls → Applications → Add an
+application → Self-hosted and private → Public DNS`. Vytvořte aplikaci pouze
+pro hostname `monitor-mqtt2.meshcore.website`, bez omezení na cestu.
+
+Doporučená politika:
+
+```text
+Policy name: MQTT2 administrators
+Action: Allow
+Include: Emails -> konkrétní správcovské e-maily
+Require: IP ranges -> povolené veřejné adresy
+Session duration: 8 hours
+```
+
+IPv4 zapisujte jako `/32` a jednotlivou IPv6 jako `/128`. Pokud má být povoleno
+více alternativních IPv4/IPv6 adres, vložte je jako hodnoty do stejného
+pravidla `IP ranges`; nevytvářejte z nich několik samostatných `Require`
+pravidel, která se vyhodnocují současně. Jako identity provider lze použít
+Cloudflare One-time PIN nebo nakonfigurované SSO. `Cloudflare One Client` není
+pro tento browserový dashboard potřeba.
+
+Teprve potom v existujícím Cloudflare Tunnel přidejte další published
+application route/public hostname:
 
 ```text
 Hostname: monitor-mqtt2.meshcore.website
 Service:  http://nginx:80
 ```
 
+Pokud Cloudflare nabídne `Protect with Access`, zapněte jej, aby `cloudflared`
+ověřoval Access token před předáním požadavku Nginxu.
+
 Samostatný DNS záznam není při přidání public hostname přes dashboard obvykle
 potřeba; Cloudflare jej vytvoří pro tunnel. Přístup ověřte jednou z povolené IP
 a jednou například přes mobilní data, odkud musí být zamítnutý.
+
+### Kontrola monitoringu
+
+Po nasazení musí výpis obsahovat šest běžících služeb; `feed-broker`, `monitor`
+a `nginx` mají být `healthy`:
+
+```bash
+./scripts/compose.sh ps -a
+```
+
+Příjem interních metrik a deduplikačních událostí ověříte bez výpisu hesel:
+
+```bash
+./scripts/compose.sh logs --since=5m monitor | tail -50
+./scripts/compose.sh logs --since=5m dedup-worker \
+  | grep -E 'Connected|Subscribed|stats' \
+  | tail -30
+```
+
+Pokud se dashboard otevře bez přihlášení, Access aplikace není správně
+přiřazená k monitorovacímu hostname. HTTP `502` po úspěšném přihlášení obvykle
+znamená, že neběží `monitor` nebo Nginx nemůže službu oslovit. Stav
+`feed_connected:false` znamená problém spojení účtu `monitor-ro` s interním
+feed-brokerem; zkontrolujte shodu `MONITOR_MQTT_PASSWORD` a
+`MONITOR_RO_PASSWORD`, ACL a log služby `monitor`.
 
 ## Image tokenového brokeru
 
