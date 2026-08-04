@@ -13,6 +13,8 @@ services:
         condition: service_healthy
       feed-proxy:
         condition: service_healthy
+      monitor:
+        condition: service_healthy
     ports:
       - "80:80"
     environment:

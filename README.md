@@ -303,6 +303,11 @@ Dashboard zobrazuje:
   a interních služeb; krátké healthcheck relace účtu `feed-health` se skrývají;
 - veřejnou IPv4/IPv6 klientů připojených přes read-only WebSocket `/feed`.
 
+Monitor sleduje také generaci feed-brokeru podle `$SYS/broker/uptime`. Po
+restartu Mosquitta označí relace z předchozího běhu jako odpojené a odstraní tak
+falešně aktivní historické klienty. `dedup-worker` a veřejný read-only vstup se
+při startu zpřístupní až po zdravém monitoru, který už odebírá `$SYS/#`.
+
 Kliknutím na záhlaví observer tabulky lze řadit textové i číselné sloupce
 vzestupně a sestupně, například zobrazit nejdříve observery s nejvyšším počtem
 duplicit. Kliknutí na řádek otevře podrobný pohled na observer.
@@ -355,6 +360,9 @@ standardně mažou.
 Při prvním startu nové verze monitor automaticky doplní chybějící sloupce a
 tabulky do existující SQLite databáze. Dosavadní celkové počty zůstanou
 zachované. Starší duplicity se záměrně neodhadují a zobrazí se jako `neurčeno`.
+Při prvním zpracování generace brokeru se dříve uložené aktivní relace bezpečně
+uzavřou; aktuální klienti se při řízeném restartu Nginxu a workeru zaregistrují
+znovu.
 
 ### Aktualizace monitoringu s existující databází
 
