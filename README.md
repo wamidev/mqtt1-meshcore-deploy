@@ -303,6 +303,9 @@ Dashboard zobrazuje:
   a interních služeb; krátké healthcheck relace účtu `feed-health` se skrývají;
 - veřejnou IPv4/IPv6 klientů připojených přes read-only WebSocket `/feed`.
 
+Připojené relace klientů zůstávají viditelné bez časového omezení. Odpojené
+relace dashboard automaticky skryje 24 hodin po poslední události.
+
 Monitor sleduje také generaci feed-brokeru podle `$SYS/broker/uptime`. Po
 restartu Mosquitta označí relace z předchozího běhu jako odpojené a odstraní tak
 falešně aktivní historické klienty. `dedup-worker` a veřejný read-only vstup se
