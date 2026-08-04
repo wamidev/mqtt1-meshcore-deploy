@@ -86,6 +86,7 @@ PUBLIC_DOMAIN=mqtt2.meshcore.website
 AUTH_EXPECTED_AUDIENCE=mqtt2.meshcore.website
 MQTT_INPUT_TOPIC=meshcore/#
 MQTT_OUTPUT_PREFIX=meshcore
+DEDUP_KEY_MODE=topic_raw
 ```
 
 Cloudflare Tunnel nastavte na službu `http://nginx:80` a jeho token vložte do
@@ -119,6 +120,7 @@ PUBLIC_DOMAIN=mqtt1.meshcore.cz
 AUTH_EXPECTED_AUDIENCE=mqtt1.meshcore.cz
 MQTT_INPUT_TOPIC=meshcore/#
 MQTT_OUTPUT_PREFIX=meshcore
+DEDUP_KEY_MODE=topic_raw
 ```
 
 Lokální Nginx naslouchá na portu 80. Nadřazený veřejný Nginx musí proxyovat
@@ -218,6 +220,25 @@ interní výstup: meshcore/{lokace}/{public_key}/...
 Worker zachovává původní strukturu tématu. Deduplikovaný feed je oddělený
 samostatným brokerem a WebSocket cestou `/feed`, nikoli segmentem `feed` uvnitř
 tématu. CoreScope tak správně vyhodnotí `{lokace}` jako region.
+
+Režim `topic_raw` porovnává veřejný klíč observeru, druh zprávy a pole `raw`
+z packet JSON. Region/IATA v topicu se pro deduplikační klíč ignoruje. Rozdílný
+region, hodnoty `timestamp`, `SNR`, `RSSI` ani pořadí JSON polí tak nebrání
+detekci stejného packetu publikovaného jedním observerem na oba zdrojové
+brokery. Do feedu se publikuje nezměněný topic první přijaté kopie.
+Minutové statistiky workeru uvádějí příjem, předání a duplicity zvlášť pro
+`source1` a `source2`; tím lze ověřit, že oba vstupy skutečně dodávají data.
+
+Pro dočasnou diagnostiku jednoho observeru lze do `.env` nastavit:
+
+```env
+DEDUP_DIAGNOSTIC_PUBLIC_KEY=VEREJNY_KLIC_OBSERVERU
+```
+
+Výběr funguje nezávisle na regionu/IATA v topicu. Worker pro odpovídající zprávy
+loguje zdroj, výsledek `forwarded` nebo `duplicate` a zkrácené SHA otisky celého
+payloadu a pole `raw`. Samotný payload ani přihlašovací údaje se do logu
+nezapisují. Po ukončení testu hodnotu znovu vyprázdněte.
 
 `dedup-reader` je read-only účet veřejných brokerů. `dedup-writer` smí zapisovat
 jen `meshcore/#`; `corescope-ro` a `map-ro` jej smějí jen číst.
