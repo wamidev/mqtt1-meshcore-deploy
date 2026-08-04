@@ -1,4 +1,8 @@
 services:
+  dedup-worker:
+    environment:
+      MONITOR_OBSERVER_IP_SOURCE: source1
+
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped
@@ -6,6 +10,8 @@ services:
       public-broker:
         condition: service_started
       feed-broker:
+        condition: service_healthy
+      feed-proxy:
         condition: service_healthy
     ports:
       - "80:80"

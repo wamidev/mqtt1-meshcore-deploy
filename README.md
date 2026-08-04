@@ -15,7 +15,7 @@ Stav k 4. 8. 2026:
 - produkční deploy repozitář je naklonovaný přímo do
   `/opt/meshcore-mqtt-stack`;
 - produkční verze stacku obsahuje kontejnery `public-broker`, `feed-broker`,
-  `dedup-worker`, `monitor`, `nginx` a `cloudflared`;
+  `feed-proxy`, `dedup-worker`, `monitor`, `nginx` a `cloudflared`;
 - monitor je dostupný na `https://monitor-mqtt2.meshcore.website` pouze přes
   Cloudflare Access; přístup vyžaduje povolený správcovský e-mail i zdrojovou
   IP adresu;
@@ -51,6 +51,8 @@ obecné `404 Not found`.
 
 - `public-broker`: veřejný WebSocket broker ověřující MeshCore Ed25519 tokeny;
 - `feed-broker`: interní Mosquitto s deduplikovaným feedem;
+- `feed-proxy`: interní HAProxy, která předává veřejnou IP read-only WebSocket
+  klienta Mosquittu pomocí PROXY protocol v2;
 - `dedup-worker`: čte oba veřejné brokery a zapisuje do lokálního feedu;
 - `mqtt-monitor`: ukládá agregované provozní statistiky a poskytuje interní
   administrační web;
@@ -98,6 +100,7 @@ DEDUP_KEY_MODE=topic_raw
 MONITOR_DOMAIN=monitor-mqtt2.meshcore.website
 MONITOR_EVENTS_ENABLED=true
 MONITOR_TOPIC_PREFIX=meshcore-monitor
+MONITOR_OBSERVER_IP_SOURCE=source2
 MONITOR_RETENTION_DAYS=30
 MONITOR_ACTIVE_WINDOW_SECONDS=180
 ```
@@ -287,19 +290,87 @@ Dashboard zobrazuje:
 
 - spojení workeru ke `source1`, `source2` a internímu feedu;
 - aktivní observery, jejich region, veřejný klíč a poslední aktivitu;
+- poslední známou veřejnou IPv4/IPv6 observeru přihlášeného k lokálnímu
+  tokenovému brokeru;
 - počet přijatých, předaných a duplicitních zpráv po observerech a zdrojích;
 - množství přenesených dat a druhy topiců;
-- celkový počet klientů feed-brokeru a známé relace `corescope-ro`, `map-ro` a
-  interních služeb.
+- rozdělení duplicit na `same-source`, `cross-source` a starší neurčené záznamy;
+- matici `source1/source2`, průměrnou a maximální prodlevu další kopie;
+- přepínatelné statistiky přibližně za 5 minut, 1 hodinu, 24 hodin a celou
+  historii; časové údaje vycházejí z pětiminutových agregací;
+- značky restartů deduplikačního workeru v grafu;
+- počet skutečných klientů feed-brokeru a známé relace `corescope-ro`, `map-ro`
+  a interních služeb; krátké healthcheck relace účtu `feed-health` se skrývají;
+- veřejnou IPv4/IPv6 klientů připojených přes read-only WebSocket `/feed`.
 
-Protože WebSocket provoz prochází přes Nginx, Mosquitto u vzdálených klientů
-obvykle vidí interní Docker adresu Nginxu. Spolehlivě dostupné jsou MQTT client
-ID, účet, stav relace a čas připojení; veřejnou IP nelze na této vrstvě bezpečně
-přiřadit ke konkrétnímu MQTT client ID.
+Kliknutím na záhlaví observer tabulky lze řadit textové i číselné sloupce
+vzestupně a sestupně, například zobrazit nejdříve observery s nejvyšším počtem
+duplicit. Kliknutí na řádek otevře podrobný pohled na observer.
+
+Význam klasifikace:
+
+```text
+same-source  první i další kopie přišly ze stejného source
+cross-source první a další kopie přišly z různých source
+neurčeno     záznam vznikl před nasazením klasifikace a nelze jej přesně určit
+```
+
+Read-only WebSocket provoz `/feed` vede z Nginxu přes interní `feed-proxy` na
+samostatný Mosquitto listener `9002`. Nginx vždy přepíše interní hlavičku
+`X-MeshCore-Client-IP`: na MQTT2 hodnotou `CF-Connecting-IP` od Cloudflare a na
+MQTT1 přímo přijatou adresou `$remote_addr`. HAProxy tuto ověřenou IP nastaví
+jako zdroj a předá Mosquittu pomocí PROXY protocol v2. Mosquitto ji proto zapíše
+ke správnému MQTT client ID a účtu. Listener `9002` není publikovaný na hostiteli;
+přímé interní služby nadále používají listener `9001` bez PROXY protocolu.
+IP v dashboardu je veřejná adresa klienta bez technického portu interního proxy
+spojení.
+
+Na Cloudflare nesmí být pro MQTT2 zapnutý Managed Transform `Remove visitor IP
+headers`, jinak nebude `CF-Connecting-IP` doručená Nginxu a `/feed` spojení bude
+bezpečně odmítnuto. Klient musí po nasazení navázat nové spojení, aby se jeho
+veřejná IP propsala do monitoru.
+
+Veřejná IP observeru se získává odděleně přímo v tokenovém brokeru. MQTT2 Nginx
+předává hlavičku `CF-Connecting-IP` jak pro `/mqtt`, tak pro kořenový WebSocket
+`/`, který používá Home Assistant. Broker po úspěšném ověření tokenu vytvoří
+privátní událost `$meshcore-monitor/observer/ip/{public_key}`. Číst ji smí jen
+`dedup-reader`; worker na MQTT2 ji přijímá výhradně ze `source2` a lokálně ji
+uloží pod `meshcore-monitor/observer/ip/{public_key}`. Údaj neprochází přes
+`meshcore/#`, takže jej CoreScope, mapa ani jiné read-only služby neuvidí.
+
+Volbu lokálního zdroje řídí `MONITOR_OBSERVER_IP_SOURCE`. MQTT2 override ji
+nastavuje na `source2`, MQTT1 override na `source1`. Při změně pořadí zdrojů se
+musí odpovídajícím způsobem změnit i tato hodnota.
+
+U plánovaného MQTT1 bude `$remote_addr` bez další konfigurace představovat
+adresu nadřazeného Nginxu. Až se MQTT1 nasadí, musí se důvěryhodné předání
+skutečné klientské IP mezi oběma Nginx vrstvami navrhnout podle jejich síťového
+zapojení; hlavička dodaná přímo veřejným klientem se nesmí slepě důvěřovat.
 
 Monitor neukládá původní MQTT payloady, `raw` packet, tokeny, hesla ani privátní
-klíče. SQLite databáze obsahuje pouze agregované statistiky a standardně maže
-pětiminutové časové řady starší než 30 dnů.
+klíče. SQLite databáze obsahuje agregované statistiky a poslední známou IP
+observeru. Pětiminutové časové řady i IP neobnovené déle než 30 dnů se
+standardně mažou.
+
+Při prvním startu nové verze monitor automaticky doplní chybějící sloupce a
+tabulky do existující SQLite databáze. Dosavadní celkové počty zůstanou
+zachované. Starší duplicity se záměrně neodhadují a zobrazí se jako `neurčeno`.
+
+### Aktualizace monitoringu s existující databází
+
+Před aktualizací je vhodné vytvořit konzistentní zálohu `monitor/data/` podle
+části „Záloha“. Nová verze nevyžaduje změnu `.env` ani nové heslo:
+
+```bash
+cd /opt/meshcore-mqtt-stack
+git pull --ff-only
+./scripts/start.sh
+./scripts/compose.sh ps -a
+```
+
+Aktualizují se image `meshcore-dedup-worker`, `meshcore-mqtt-monitor`, Mosquitto
+2.1 a nová interní služba `feed-proxy`. Restart workeru vytvoří nový identifikátor
+běhu a prázdnou deduplikační cache; dashboard tento okamžik označí v grafu.
 
 Pro aktualizaci existujícího MQTT2 serveru zachovejte současnou `.env` a
 doplňte do ní nové hodnoty podle `.env.mqtt2.example`. Pro
@@ -374,8 +445,8 @@ a jednou například přes mobilní data, odkud musí být zamítnutý.
 
 ### Kontrola monitoringu
 
-Po nasazení musí výpis obsahovat šest běžících služeb; `feed-broker`, `monitor`
-a `nginx` mají být `healthy`:
+Po nasazení MQTT2 musí výpis obsahovat sedm běžících služeb; `feed-broker`,
+`feed-proxy`, `monitor` a `nginx` mají být `healthy`:
 
 ```bash
 ./scripts/compose.sh ps -a
@@ -385,10 +456,23 @@ Příjem interních metrik a deduplikačních událostí ověříte bez výpisu 
 
 ```bash
 ./scripts/compose.sh logs --since=5m monitor | tail -50
+./scripts/compose.sh logs --since=5m feed-proxy | tail -30
 ./scripts/compose.sh logs --since=5m dedup-worker \
   | grep -E 'Connected|Subscribed|stats' \
   | tail -30
 ```
+
+Po novém připojení CoreScope ověřte, že Mosquitto už neloguje Docker adresu
+`172.18.x.x`, ale veřejnou IP klienta:
+
+```bash
+./scripts/compose.sh logs --since=5m feed-broker \
+  | grep "u'corescope-ro'" \
+  | tail -10
+```
+
+Dashboard nesmí zobrazovat účet `feed-health`; staré uložené healthcheck relace
+jsou filtrovány automaticky a databázi není nutné mazat.
 
 Pokud se dashboard otevře bez přihlášení, Access aplikace není správně
 přiřazená k monitorovacímu hostname. HTTP `502` po úspěšném přihlášení obvykle

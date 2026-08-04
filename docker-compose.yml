@@ -6,6 +6,7 @@ services:
       MQTT_HOST: 0.0.0.0
       MQTT_WS_PORT: 8883
       AUTH_EXPECTED_AUDIENCE: ${AUTH_EXPECTED_AUDIENCE}
+      OBSERVER_IP_MONITOR_SUBSCRIBER: dedup-reader
       SUBSCRIBER_MAX_CONNECTIONS_DEFAULT: 10
       SUBSCRIBER_1: "dedup-reader:${PUBLIC_BROKER_READER_PASSWORD}:2:10"
       ABUSE_ENFORCEMENT_ENABLED: ${ABUSE_ENFORCEMENT_ENABLED:-true}
@@ -33,7 +34,7 @@ services:
     networks: [meshcore_mqtt]
 
   feed-broker:
-    image: eclipse-mosquitto:2
+    image: eclipse-mosquitto:2.1.2-alpine
     restart: unless-stopped
     volumes:
       - ./mosquitto/config:/mosquitto/config:ro
@@ -42,6 +43,7 @@ services:
     expose:
       - "1883"
       - "9001"
+      - "9002"
     environment:
       MQTT_HEALTH_PASSWORD: ${MQTT_LOCAL_DEDUP_READER_PASSWORD}
     healthcheck:
@@ -50,6 +52,24 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    networks: [meshcore_mqtt]
+
+  feed-proxy:
+    image: haproxy:3.2.21-alpine
+    restart: unless-stopped
+    depends_on:
+      feed-broker:
+        condition: service_healthy
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "haproxy", "-c", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
     networks: [meshcore_mqtt]
 
   dedup-worker:
@@ -80,6 +100,7 @@ services:
       MQTT_CLIENT_ID_PREFIX: ${MQTT_CLIENT_ID_PREFIX:-meshcore-dedup}
       MONITOR_EVENTS_ENABLED: ${MONITOR_EVENTS_ENABLED:-true}
       MONITOR_TOPIC_PREFIX: ${MONITOR_TOPIC_PREFIX:-meshcore-monitor}
+      MONITOR_OBSERVER_IP_SOURCE: ${MONITOR_OBSERVER_IP_SOURCE:-}
     networks: [meshcore_mqtt]
 
   monitor:

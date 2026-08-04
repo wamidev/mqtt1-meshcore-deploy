@@ -36,7 +36,7 @@ add_user() {
   username=$1
   password=$2
   printf '%s\n%s\n' "$password" "$password" | docker run --rm -i \
-    -v "$CONFIG_DIR:/mosquitto/config" eclipse-mosquitto:2 \
+    -v "$CONFIG_DIR:/mosquitto/config" eclipse-mosquitto:2.1.2-alpine \
     mosquitto_passwd /mosquitto/config/passwd "$username"
 }
 
@@ -47,7 +47,7 @@ add_user map-ro "$MAP_RO_PASSWORD"
 add_user monitor-ro "$MONITOR_RO_PASSWORD"
 
 docker run --rm --user 0:0 --entrypoint sh \
-  -v "$CONFIG_DIR:/mosquitto/config" eclipse-mosquitto:2 \
+  -v "$CONFIG_DIR:/mosquitto/config" eclipse-mosquitto:2.1.2-alpine \
   -c 'chown root:root /mosquitto/config/passwd && chmod 644 /mosquitto/config/passwd'
 
 echo "Created $PASSWD_FILE with mode 644 so the unprivileged Mosquitto process can read it."

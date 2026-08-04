@@ -20,11 +20,11 @@ case "${MONITOR_RO_PASSWORD:-}" in
 esac
 
 printf '%s\n%s\n' "$MONITOR_RO_PASSWORD" "$MONITOR_RO_PASSWORD" | docker run --rm -i \
-  -v "$CONFIG_DIR:/mosquitto/config" eclipse-mosquitto:2 \
+  -v "$CONFIG_DIR:/mosquitto/config" eclipse-mosquitto:2.1.2-alpine \
   mosquitto_passwd /mosquitto/config/passwd monitor-ro
 
 docker run --rm --user 0:0 --entrypoint sh \
-  -v "$CONFIG_DIR:/mosquitto/config" eclipse-mosquitto:2 \
+  -v "$CONFIG_DIR:/mosquitto/config" eclipse-mosquitto:2.1.2-alpine \
   -c 'chown root:root /mosquitto/config/passwd && chmod 644 /mosquitto/config/passwd'
 
 echo "Added or updated monitor-ro in $PASSWD_FILE."
