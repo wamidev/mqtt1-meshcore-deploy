@@ -114,7 +114,3 @@ Kompletní technický návod je v souboru
 - nastavení Nginxu, Cloudflare Tunnel a Cloudflare Access;
 - konfiguraci observerů a read-only klientů;
 - monitoring, aktualizace, diagnostiku a zálohování.
-
-Zdrojový repozitář projektu obsahuje také podrobnější
-[architektonický popis](https://github.com/wamidev/meshcore-mqtt-stack/blob/main/docs/architecture.md)
-a [konfiguraci observeru pro MQTT2](https://github.com/wamidev/meshcore-mqtt-stack/blob/main/MQTT2-OBSERVER-CONFIG.md).
