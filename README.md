@@ -314,6 +314,9 @@ při startu zpřístupní až po zdravém monitoru, který už odebírá `$SYS/#
 Kliknutím na záhlaví observer tabulky lze řadit textové i číselné sloupce
 vzestupně a sestupně, například zobrazit nejdříve observery s nejvyšším počtem
 duplicit. Kliknutí na řádek otevře podrobný pohled na observer.
+Desktopové rozložení používá kompaktní sloupce bez vodorovného posuvníku.
+Veřejný klíč je v tabulce zkrácený; celý klíč zůstává dostupný po najetí a v
+detailu observeru. Na úzkých displejích zůstává vodorovné posouvání jako záloha.
 
 Význam klasifikace:
 
