@@ -22,6 +22,7 @@ services:
       MONITOR_DOMAIN: ${MONITOR_DOMAIN}
     volumes:
       - ./nginx/templates/mqtt2:/etc/nginx/templates:ro
+      - ./nginx/site:/usr/share/nginx/html/site:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q --header=\"Host: $${PUBLIC_DOMAIN}\" --spider http://127.0.0.1/health || exit 1"]
       interval: 30s

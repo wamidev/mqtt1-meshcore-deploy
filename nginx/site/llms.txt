@@ -1,0 +1,20 @@
+# MeshCore Czech MQTT cluster
+
+> Veřejný český MeshCore MQTT cluster a návod pro připojení observerů.
+
+## Hlavní stránka
+
+- [Nastavení observeru](https://mqtt2.meshcore.website/): Kompletní český návod pro Packet Capture, MCTOMQTT a Home Assistant.
+
+## MQTT servery
+
+- MQTT1 Czech: `mqtt1.meshcore.cz`, port 443, WebSockets, TLS, token audience `mqtt1.meshcore.cz`
+- MQTT2 Czech: `mqtt2.meshcore.website`, port 443, WebSockets, TLS, token audience `mqtt2.meshcore.website`
+- Topic statusu: `meshcore/{IATA}/{PUBLIC_KEY}/status`
+- Topic paketů: `meshcore/{IATA}/{PUBLIC_KEY}/packets`
+
+## Ověření observeru
+
+- [MeshCore Analyzer – observeři](https://analyzer.meshcore.cz/#/observers)
+
+Stránka je v češtině. Hodnota IATA je povinný třípísmenný kód kraje observeru.

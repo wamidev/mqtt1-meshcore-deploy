@@ -66,12 +66,12 @@ server {
         proxy_hide_header X-Powered-By;
     }
 
-    # The MeshCore Home Assistant integration uses the WebSocket root path.
+    # Browsers receive the information page. The MeshCore Home Assistant
+    # integration continues to use the WebSocket root path.
     location = / {
-        default_type text/plain;
-        charset utf-8;
+        error_page 418 = /site/index.html;
         if ($http_upgrade = '') {
-            return 200 "MeshCore CZ MQTT2 endpoint\n";
+            return 418;
         }
         proxy_pass http://public-broker:8883;
         proxy_http_version 1.1;
@@ -86,6 +86,40 @@ server {
         proxy_send_timeout 3600s;
         proxy_buffering off;
         proxy_hide_header X-Powered-By;
+    }
+
+    location = /site {
+        return 301 /site/;
+    }
+
+    location = /robots.txt {
+        root /usr/share/nginx/html;
+        try_files /site/robots.txt =404;
+        default_type text/plain;
+        charset utf-8;
+    }
+
+    location = /sitemap.xml {
+        root /usr/share/nginx/html;
+        try_files /site/sitemap.xml =404;
+        default_type application/xml;
+        charset utf-8;
+    }
+
+    location = /llms.txt {
+        root /usr/share/nginx/html;
+        try_files /site/llms.txt =404;
+        default_type text/plain;
+        charset utf-8;
+    }
+
+    location /site/ {
+        root /usr/share/nginx/html;
+        try_files $uri $uri/ /site/index.html;
+        add_header Cache-Control "public, max-age=300" always;
+        add_header X-Frame-Options DENY always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-6kE/1owddjuWFFKyMukRdnrhD8n6cleiPPxHffqZVg8='; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
     }
 
     location / {

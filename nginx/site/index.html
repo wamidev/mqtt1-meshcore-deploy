@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Český MeshCore MQTT cluster: návod pro připojení observeru k MQTT1 Czech a MQTT2 Czech pomocí Packet Capture, MCTOMQTT nebo Home Assistantu.">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="theme-color" content="#07111f">
+  <link rel="canonical" href="https://mqtt2.meshcore.website/">
+  <link rel="icon" type="image/png" href="/site/meshcore-czech-icon.png">
+  <link rel="apple-touch-icon" href="/site/meshcore-czech-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="cs_CZ">
+  <meta property="og:site_name" content="MeshCore Czech">
+  <meta property="og:title" content="MeshCore Czech MQTT cluster">
+  <meta property="og:description" content="Návod pro připojení observeru k českým serverům MQTT1 a MQTT2.">
+  <meta property="og:url" content="https://mqtt2.meshcore.website/">
+  <meta property="og:image" content="https://mqtt2.meshcore.website/site/meshcore-czech-logo.png">
+  <meta property="og:image:alt" content="Logo MeshCore Czech">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="MeshCore Czech MQTT cluster">
+  <meta name="twitter:description" content="Návod pro připojení MeshCore observeru k českému MQTT clusteru.">
+  <meta name="twitter:image" content="https://mqtt2.meshcore.website/site/meshcore-czech-logo.png">
+  <title>MeshCore Czech MQTT cluster · Nastavení observeru</title>
+  <link rel="stylesheet" href="/site/styles.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "MeshCore Czech MQTT cluster",
+    "alternateName": "MeshCore Czech",
+    "url": "https://mqtt2.meshcore.website/",
+    "inLanguage": "cs-CZ",
+    "description": "Návod pro připojení MeshCore observeru k českým serverům MQTT1 Czech a MQTT2 Czech.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "MeshCore Czech",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://mqtt2.meshcore.website/site/meshcore-czech-logo.png"
+      }
+    }
+  }
+  </script>
+  <script src="/site/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#navod">Přeskočit na návod</a>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="MeshCore CZ MQTT cluster – úvod">
+      <img class="brand-logo" src="/site/meshcore-czech-icon.png" alt="MeshCore Czech">
+      <span><strong>MeshCore Czech</strong><small>MQTT cluster · Česká republika</small></span>
+    </a>
+    <nav aria-label="Hlavní navigace">
+      <a href="#jak-to-funguje">Jak cluster funguje</a>
+      <a href="#navod">Nastavení observeru</a>
+      <a href="#kontrola">Kontrola připojení</a>
+    </nav>
+    <span class="service-state"><i></i> MQTT cluster v provozu</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Veřejná komunitní infrastruktura</p>
+        <h1>Připojte svůj observer k&nbsp;českému MQTT clusteru.</h1>
+        <p class="lead">Pomozte vytvořit spolehlivější přehled o síti MeshCore v ČR. Připojení je šifrované, používá vaši MeshCore identitu a zabere jen pár minut.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#navod">Nastavit observer <span>↓</span></a>
+          <a class="button secondary" href="#jak-to-funguje">Jak cluster funguje</a>
+        </div>
+        <ul class="trust-list" aria-label="Vlastnosti služby">
+          <li>Šifrování TLS</li><li>Bez statického hesla</li><li>Pro celou ČR</li>
+        </ul>
+      </div>
+      <div class="network-card" aria-label="Schéma datového toku">
+        <div class="glow"></div>
+        <div class="node observer"><span class="node-icon">⌁</span><div><small>Váš uzel</small><strong>Observer</strong></div><i></i></div>
+        <div class="flow-label">WSS + TLS</div>
+        <div class="connector fork" aria-hidden="true"></div>
+        <div class="broker-row">
+          <div class="node broker"><span class="node-icon">M1</span><div><small>mqtt1.meshcore.cz</small><strong>MQTT1 Czech</strong></div><b>ONLINE</b></div>
+          <div class="node broker"><span class="node-icon">M2</span><div><small>mqtt2.meshcore.website</small><strong>MQTT2 Czech</strong></div><b>ONLINE</b></div>
+        </div>
+        <div class="connector join" aria-hidden="true"></div>
+        <div class="cluster-node"><small>Česká komunitní infrastruktura</small><strong>MeshCore MQTT cluster</strong></div>
+        <div class="connector services-line" aria-hidden="true"></div>
+        <div class="destinations service-row">
+          <div><i></i><span>Mapa</span></div><div><i></i><span>Analyzer</span></div><div><i></i><span>Ostatní služby</span></div>
+        </div>
+        <p>Observer odesílá data samostatně na MQTT1 a MQTT2. Oba české uzly tvoří společný cluster pro komunitní mapu, Analyzer a další služby.</p>
+      </div>
+    </section>
+
+    <section class="facts" aria-label="Parametry připojení">
+      <div><span>Servery</span><strong>mqtt1.meshcore.cz<br>mqtt2.meshcore.website</strong><button class="copy-inline" data-copy="mqtt1.meshcore.cz&#10;mqtt2.meshcore.website" aria-label="Kopírovat servery">Kopírovat</button></div>
+      <div><span>Port</span><strong>443</strong></div>
+      <div><span>Transport</span><strong>WebSockets</strong></div>
+      <div><span>Zabezpečení</span><strong>TLS ověřeno</strong></div>
+    </section>
+
+    <section id="jak-to-funguje" class="section intro-section">
+      <div class="section-heading"><p class="eyebrow">Tok dat</p><h2>Jak cluster funguje</h2><p>Observer naváže dvě samostatná zabezpečená spojení. Data odešle na oba české MQTT servery a cluster je zpřístupní komunitním službám.</p></div>
+      <div class="benefit-grid">
+        <article><span>01</span><h3>Observer odešle data</h3><p>Observer používá dva samostatné profily a připojí se přes šifrovaný WebSocket k MQTT1 i MQTT2.</p></article>
+        <article><span>02</span><h3>Servery tvoří cluster</h3><p>MQTT1 Czech a MQTT2 Czech jsou dva nezávislé české uzly společné komunitní infrastruktury.</p></article>
+        <article><span>03</span><h3>Data využijí služby</h3><p>Na cluster jsou připojené Mapa, Analyzer a další služby určené pro komunitu MeshCore.</p></article>
+      </div>
+    </section>
+
+    <section id="navod" class="section guide-section">
+      <div class="section-heading narrow"><p class="eyebrow">Návod krok za krokem</p><h2>Nastavení observeru</h2><p>Vyberte software, který používáte. Hodnotu <code>XXX</code> vždy nahraďte třípísmenným kódem vašeho kraje.</p></div>
+
+      <div id="aplikace" class="configurator">
+        <div class="tabs" role="tablist" aria-label="Typ instalace">
+          <button role="tab" aria-selected="true" aria-controls="packet" id="tab-packet" data-tab="packet">Packet Capture</button>
+          <button role="tab" aria-selected="false" aria-controls="mctomqtt" id="tab-mctomqtt" data-tab="mctomqtt">MCTOMQTT</button>
+          <button role="tab" aria-selected="false" aria-controls="ha" id="tab-ha" data-tab="ha">Home Assistant</button>
+        </div>
+
+        <div class="tab-panel active" id="packet" role="tabpanel" aria-labelledby="tab-packet">
+          <div class="instructions">
+            <div class="step"><b>1</b><div><h3>Otevřete uživatelskou konfiguraci</h3><p>U nové systémové instalace upravte soubor:</p><code>/etc/meshcore-packet-capture/config.d/99-user.toml</code></div></div>
+            <div class="step"><b>2</b><div><h3>Vložte oba MQTT profily</h3><p>Změňte <code>XXX</code> na kód svého kraje, například <code>PRG</code>, <code>BRQ</code> nebo <code>OSR</code>.</p></div></div>
+            <div class="step"><b>3</b><div><h3>Restartujte službu</h3><p>Spusťte <code>sudo systemctl restart meshcore-packet-capture</code>.</p></div></div>
+          </div>
+          <div class="code-card"><div class="code-head"><span>99-user.toml</span><button data-copy-target="code-packet">Kopírovat</button></div><pre id="code-packet"><code># MQTT1 Czech
+[[broker]]
+name = "MQTT1 Czech"
+enabled = true
+server = "mqtt1.meshcore.cz"
+port = 443
+transport = "websockets"
+keepalive = 60
+qos = 0
+
+[broker.tls]
+enabled = true
+verify = true
+
+[broker.auth]
+method = "token"
+audience = "mqtt1.meshcore.cz"
+
+[broker.topics]
+iata = "XXX"
+status = "meshcore/{IATA}/{PUBLIC_KEY}/status"
+packets = "meshcore/{IATA}/{PUBLIC_KEY}/packets"
+
+# MQTT2 Czech
+[[broker]]
+name = "MQTT2 Czech"
+enabled = true
+server = "mqtt2.meshcore.website"
+port = 443
+transport = "websockets"
+keepalive = 60
+qos = 0
+
+[broker.tls]
+enabled = true
+verify = true
+
+[broker.auth]
+method = "token"
+audience = "mqtt2.meshcore.website"
+
+[broker.topics]
+iata = "XXX"
+status = "meshcore/{IATA}/{PUBLIC_KEY}/status"
+packets = "meshcore/{IATA}/{PUBLIC_KEY}/packets"</code></pre></div>
+        </div>
+
+        <div class="tab-panel" id="mctomqtt" role="tabpanel" aria-labelledby="tab-mctomqtt" hidden>
+          <div class="instructions">
+            <div class="step"><b>1</b><div><h3>Otevřete konfiguraci</h3><p>Upravte <code>/etc/mctomqtt/config.d/99-user.toml</code>.</p></div></div>
+            <div class="step"><b>2</b><div><h3>Doplňte region a oba profily</h3><p>Hodnotu <code>XXX</code> nahraďte třípísmenným kódem kraje observeru.</p></div></div>
+            <div class="step"><b>3</b><div><h3>Restartujte a ověřte</h3><p><code>sudo systemctl restart mctomqtt</code><br><code>sudo systemctl status mctomqtt --no-pager</code></p></div></div>
+          </div>
+          <div class="code-card"><div class="code-head"><span>99-user.toml</span><button data-copy-target="code-mctomqtt">Kopírovat</button></div><pre id="code-mctomqtt"><code>[general]
+iata = "XXX"
+
+# MQTT1 Czech
+[[broker]]
+name = "MQTT1 Czech"
+enabled = true
+server = "mqtt1.meshcore.cz"
+port = 443
+transport = "websockets"
+keepalive = 60
+qos = 0
+
+[broker.tls]
+enabled = true
+verify = true
+
+[broker.auth]
+method = "token"
+audience = "mqtt1.meshcore.cz"
+
+[broker.topics]
+iata = "XXX"
+status = "meshcore/{IATA}/{PUBLIC_KEY}/status"
+packets = "meshcore/{IATA}/{PUBLIC_KEY}/packets"
+
+# MQTT2 Czech
+[[broker]]
+name = "MQTT2 Czech"
+enabled = true
+server = "mqtt2.meshcore.website"
+port = 443
+transport = "websockets"
+keepalive = 60
+qos = 0
+
+[broker.tls]
+enabled = true
+verify = true
+
+[broker.auth]
+method = "token"
+audience = "mqtt2.meshcore.website"
+
+[broker.topics]
+iata = "XXX"
+status = "meshcore/{IATA}/{PUBLIC_KEY}/status"
+packets = "meshcore/{IATA}/{PUBLIC_KEY}/packets"</code></pre></div>
+        </div>
+
+        <div class="tab-panel" id="ha" role="tabpanel" aria-labelledby="tab-ha" hidden>
+          <div class="ha-path">Nastavení <span>›</span> Zařízení a služby <span>›</span> MeshCore <span>›</span> Konfigurovat <span>›</span> Manage MQTT Brokers <span>›</span> Add Broker<br><small>Přidejte samostatně zapnuté profily MQTT1 Czech a MQTT2 Czech.</small></div>
+          <div class="settings-grid">
+            <dl><div><dt>MQTT1 Czech server / audience</dt><dd>mqtt1.meshcore.cz</dd></div><div><dt>MQTT1 Enabled</dt><dd class="yes">Zapnuto</dd></div><div><dt>MQTT2 Czech server / audience</dt><dd>mqtt2.meshcore.website</dd></div><div><dt>MQTT2 Enabled</dt><dd class="yes">Zapnuto</dd></div><div><dt>Port</dt><dd>443</dd></div></dl>
+            <dl><div><dt>Transport</dt><dd>websockets</dd></div><div><dt>Use TLS</dt><dd class="yes">Zapnuto</dd></div><div><dt>Verify TLS Certificate</dt><dd class="yes">Zapnuto</dd></div><div><dt>Use MeshCore Auth Token</dt><dd class="yes">Zapnuto</dd></div><div><dt>Broker IATA Code</dt><dd>váš kód kraje</dd></div></dl>
+          </div>
+          <div class="notice"><strong>Nechte prázdné:</strong> Username, Password, Owner Public Key a Owner Email. Integrace token vytváří a obnovuje automaticky.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="kontrola" class="section check-section">
+      <div class="check-card">
+        <div><p class="eyebrow">Poslední krok</p><h2>Jak poznat, že je vše v pořádku?</h2><p>Po restartu dejte systému chvíli na odeslání prvních dat. Potom otevřete seznam observerů v MeshCore Analyzeru a vyhledejte název nebo veřejný klíč svého observeru.</p><a class="button primary analyzer-link" href="https://analyzer.meshcore.cz/#/observers" target="_blank" rel="noopener noreferrer">Otevřít seznam observerů <span>↗</span></a></div>
+        <ul><li><i>✓</i><span><strong>Observer je v seznamu</strong><small>Na stránce Analyzeru se zobrazí váš observer a čas jeho poslední aktivity.</small></span></li><li><i>✓</i><span><strong>Server bez prefixu</strong><small>Do konfigurace zadejte hostname bez <code>wss://</code> a bez cesty.</small></span></li><li><i>✓</i><span><strong>Privátní klíč zůstává u vás</strong><small>Nevkládejte jej do dokumentace, formulářů ani Gitu.</small></span></li></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="brand compact"><img class="brand-logo" src="/site/meshcore-czech-icon.png" alt=""><span><strong>MeshCore Czech</strong><small>Komunitní MQTT infrastruktura</small></span></div><p>MQTT1: <code>mqtt1.meshcore.cz</code> · MQTT2: <code>mqtt2.meshcore.website</code></p><a href="#">Nahoru ↑</a></footer>
+  <div id="toast" class="toast" role="status" aria-live="polite">Zkopírováno do schránky</div>
+</body>
+</html>
