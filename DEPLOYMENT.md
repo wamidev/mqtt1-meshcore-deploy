@@ -15,7 +15,7 @@ Nginx proxy, MQTT2 používá Cloudflare Tunnel.
 
 ## Aktuální stav MQTT2
 
-Stav k 4. 8. 2026:
+Stav k 5. 8. 2026:
 
 - produkční deploy repozitář je naklonovaný přímo do
   `/opt/meshcore-mqtt-stack`;
@@ -28,6 +28,8 @@ Stav k 4. 8. 2026:
   `healthy` a interní API potvrdilo připojení monitoru k feed-brokeru;
 - observeři se připojují tokenem na `wss://mqtt2.meshcore.website/mqtt` nebo na
   kořenovou WebSocket cestu `/`;
+- běžný HTTP požadavek na kořenovou cestu zobrazuje veřejnou informační stránku
+  pro nastavení observerů;
 - CoreScope je připojený na `wss://mqtt2.meshcore.website/feed` jako
   `corescope-ro`, odebírá `meshcore/#` a regiony čte z nativních topiců;
 - než bude nasazený nový MQTT1, používá worker jako `MQTT_SOURCE_1_URL`
@@ -43,10 +45,13 @@ Deduplikovaný read-only feed pro vzdálený CoreScope nebo mapu je dostupný na
 `wss://<doména>/feed`. Vyžaduje účet `corescope-ro` nebo `map-ro` a dovoluje
 odebírat pouze `meshcore/#`.
 
-Běžný HTTP požadavek prohlížeče na `/` vrací místní identifikaci MQTT uzlu.
-Nepřesměrovává na web upstream projektu. Cesty `/mqtt` a `/feed` bez WebSocket
-upgrade vracejí HTTP `426`. Tyto textové odpovědi mají explicitní MIME typ
-`text/plain`, aby je prohlížeč nestahoval jako soubor.
+Běžný HTTP požadavek prohlížeče na `https://mqtt2.meshcore.website/` vrací
+veřejnou informační stránku s návodem pro připojení observeru k MQTT1 a MQTT2.
+Statické soubory jsou v `nginx/site/` a Nginx je připojuje read-only do
+`/usr/share/nginx/html/site`. WebSocket upgrade na kořenové cestě `/` se nadále
+proxyuje do `public-broker` kvůli kompatibilitě s MeshCore integrací v Home
+Assistantu; observer endpoint `/mqtt` se nemění. Součástí webu jsou také veřejné
+`/robots.txt`, `/sitemap.xml` a `/llms.txt`.
 
 Nginx používá vlastní `default.conf`, skrývá přesnou verzi pomocí
 `server_tokens off`, odmítá neočekávaný `Host` a neznámé cesty vracejí pouze
