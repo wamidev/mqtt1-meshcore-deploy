@@ -1,0 +1,15 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Pull and restart stack
+        run: |
+          cd /opt/meshcore-mqtt-stack
+          git pull --ff-only
+          ./scripts/start.sh

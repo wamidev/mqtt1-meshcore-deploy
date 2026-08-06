@@ -17,8 +17,10 @@ Nginx proxy, MQTT2 používá Cloudflare Tunnel.
 
 Stav k 5. 8. 2026:
 
-- produkční deploy repozitář je naklonovaný přímo do
-  `/opt/meshcore-mqtt-stack`;
+- produkční deploy repozitář (`mqtt2-meshcore-deploy`) je naklonovaný přímo do
+  `/opt/meshcore-mqtt-stack`; nasazení nové verze na `main` provádí automaticky
+  self-hosted GitHub Actions runner registrovaný na tomto repozitáři, viz
+  [Publikace deploy repozitářů](../README.md#publikace-deploy-repozitářů);
 - produkční verze stacku obsahuje kontejnery `public-broker`, `feed-broker`,
   `feed-proxy`, `dedup-worker`, `monitor`, `nginx` a `cloudflared`;
 - monitor je dostupný na `https://monitor-mqtt2.meshcore.website` pouze přes
