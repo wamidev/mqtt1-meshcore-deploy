@@ -1,6 +1,9 @@
 .env
+feed-readers.env
 deploy-meta.json
 mosquitto/config/passwd
+mosquitto/config/acl
+mosquitto/config/.feed-accounts.sha256
 mosquitto/data/
 mosquitto/log/
 public-broker/data/

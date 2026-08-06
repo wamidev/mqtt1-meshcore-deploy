@@ -6,7 +6,7 @@ DEPLOY_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 cd "$DEPLOY_DIR"
 
 [ -f .env ] || { echo "Missing .env (copy the mqtt1 or mqtt2 example first)." >&2; exit 1; }
-[ -s mosquitto/config/passwd ] || { echo "Missing passwd; run scripts/create-mosquitto-users.sh." >&2; exit 1; }
+[ -f feed-readers.env ] || { echo "Missing feed-readers.env (copy feed-readers.env.example first)." >&2; exit 1; }
 
 if grep -q 'CHANGE_ME' .env; then
   echo ".env still contains CHANGE_ME placeholders." >&2
@@ -73,7 +73,17 @@ if git rev-parse HEAD >/dev/null 2>&1; then
 META
 fi
 
+FEED_ACCOUNTS_HASH_FILE=mosquitto/config/.feed-accounts.sha256
+feed_accounts_before=""
+[ -f "$FEED_ACCOUNTS_HASH_FILE" ] && feed_accounts_before=$(cat "$FEED_ACCOUNTS_HASH_FILE")
+./scripts/create-mosquitto-users.sh
+feed_accounts_after=""
+[ -f "$FEED_ACCOUNTS_HASH_FILE" ] && feed_accounts_after=$(cat "$FEED_ACCOUNTS_HASH_FILE")
+
 compose config --quiet
 compose pull
 compose up -d
+if [ "$feed_accounts_before" != "$feed_accounts_after" ]; then
+  compose restart feed-broker
+fi
 compose ps

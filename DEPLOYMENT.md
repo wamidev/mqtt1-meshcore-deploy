@@ -95,8 +95,10 @@ repozitář, konfigurace i aplikační data jsou přímo v
 
 ```text
 /opt/meshcore-mqtt-stack/.env
+/opt/meshcore-mqtt-stack/feed-readers.env
 /opt/meshcore-mqtt-stack/public-broker/data/
 /opt/meshcore-mqtt-stack/mosquitto/config/passwd
+/opt/meshcore-mqtt-stack/mosquitto/config/acl
 /opt/meshcore-mqtt-stack/mosquitto/data/
 /opt/meshcore-mqtt-stack/mosquitto/log/
 /opt/meshcore-mqtt-stack/monitor/data/
@@ -111,6 +113,8 @@ cd /opt/meshcore-mqtt-stack
 git pull --ff-only
 cp .env.mqtt2.example .env
 chmod 600 .env
+cp feed-readers.env.example feed-readers.env
+chmod 600 feed-readers.env
 ```
 
 V `.env` nastavte všechny hodnoty `CHANGE_ME`. Pevně ponechte:
@@ -153,6 +157,8 @@ cd /opt/meshcore-mqtt-stack
 git pull --ff-only
 cp .env.mqtt1.example .env
 chmod 600 .env
+cp feed-readers.env.example feed-readers.env
+chmod 600 feed-readers.env
 ```
 
 V `.env` nastavte všechny hodnoty `CHANGE_ME`. Pevně ponechte:
@@ -209,22 +215,46 @@ MONITOR_MQTT_PASSWORD            = MONITOR_RO_PASSWORD
 Hodnoty nesmí obsahovat dvojtečku, protože konfigurace subscriberu veřejného
 brokeru používá dvojtečku jako oddělovač.
 
-Vytvoření účtů interního Mosquitta:
+Účty interního Mosquitta se dělí na dvě skupiny:
+
+- tři pevné interní účty (`feed-health`, `dedup-writer`, `monitor-ro`) —
+  hesla v `.env` (`FEED_HEALTH_PASSWORD`, `DEDUP_WRITER_PASSWORD`,
+  `MONITOR_RO_PASSWORD`);
+- libovolný počet read-only účtů pro deduplikovaný feed (`corescope-ro`,
+  `map-ro` a další podle potřeby) v samostatném souboru `feed-readers.env`:
+
+```bash
+cp feed-readers.env.example feed-readers.env
+chmod 600 feed-readers.env
+```
+
+Formát `feed-readers.env` je dvojice řádků na účet (jméno, pak heslo),
+prázdný řádek mezi účty:
+
+```text
+corescope-ro
+CHANGE_ME_CORESCOPE
+
+map-ro
+CHANGE_ME_MAP
+
+sluzba1
+mojetajneheslo
+```
+
+`./scripts/start.sh` z obou souborů při každém nasazení automaticky
+přegeneruje `mosquitto/config/passwd` a `mosquitto/config/acl` (každý čtecí
+účet dostane `topic read meshcore/#`) a `feed-broker` restartuje jen tehdy,
+když se seznam účtů nebo některé z těch tří pevných hesel skutečně změnilo —
+běžné nasazení bez změny účtů žádný restart nevyvolá. Přidání nebo odebrání
+řádku ve `feed-readers.env` se tak projeví hned při dalším deploy. Password
+file po přegenerování vlastní `root:root` s režimem `644`, protože kontejner
+po startu přepne na neprivilegovaného uživatele `mosquitto`.
+
+Regenerování lze i vyvolat samostatně bez celého `start.sh`:
 
 ```bash
 ./scripts/create-mosquitto-users.sh
-```
-
-Vytvoří se pouze účty `feed-health`, `dedup-writer`, `corescope-ro`, `map-ro` a
-`monitor-ro`.
-Password file musí vlastnit `root:root` s režimem `644`, protože kontejner po
-startu přepne na neprivilegovaného uživatele `mosquitto`.
-
-Na již běžícím serveru celý password file nevytvářejte znovu. Po doplnění
-`MONITOR_RO_PASSWORD` do `.env` přidejte pouze nový účet:
-
-```bash
-./scripts/create-monitor-user.sh
 ```
 
 ## Spuštění
@@ -292,9 +322,10 @@ Minutové statistiky obsahují celkové hodnoty i počítadla pro `source1` a
 ponechte tuto hodnotu prázdnou.
 
 `dedup-reader` je read-only účet veřejných brokerů. `dedup-writer` smí zapisovat
-do `meshcore/#` a interního `meshcore-monitor/#`; `corescope-ro` a `map-ro`
-smějí číst pouze `meshcore/#`. Samostatný `monitor-ro` smí číst jen
-`meshcore-monitor/#` a `$SYS/#`.
+do `meshcore/#` a interního `meshcore-monitor/#`; každý účet z
+`feed-readers.env` (`corescope-ro`, `map-ro` a libovolné další) smí číst pouze
+`meshcore/#`. Samostatný `monitor-ro` smí číst jen `meshcore-monitor/#` a
+`$SYS/#`.
 
 Příklad vzdáleného CoreScope:
 
@@ -303,7 +334,7 @@ Příklad vzdáleného CoreScope:
   "name": "mqtt2-deduplicated-feed",
   "broker": "wss://mqtt2.meshcore.website/feed",
   "username": "corescope-ro",
-  "password": "HESLO_Z_CORESCOPE_RO_PASSWORD",
+  "password": "HESLO_CORESCOPE_RO_Z_FEED_READERS_ENV",
   "rejectUnauthorized": true,
   "topics": ["meshcore/#"]
 }
@@ -416,23 +447,11 @@ Aktualizují se image `meshcore-dedup-worker`, `meshcore-mqtt-monitor`, Mosquitt
 2.1 a nová interní služba `feed-proxy`. Restart workeru vytvoří nový identifikátor
 běhu a prázdnou deduplikační cache; dashboard tento okamžik označí v grafu.
 
-Pro aktualizaci existujícího MQTT2 serveru zachovejte současnou `.env` a
-doplňte do ní nové hodnoty podle `.env.mqtt2.example`. Pro
-`MONITOR_MQTT_PASSWORD` a `MONITOR_RO_PASSWORD` použijte stejné nové silné
-heslo. Potom:
-
-```bash
-cd /opt/meshcore-mqtt-stack
-git pull --ff-only
-./scripts/create-monitor-user.sh
-./scripts/compose.sh config --quiet
-./scripts/compose.sh restart feed-broker
-./scripts/start.sh
-```
-
-Skript `create-monitor-user.sh` přidá nebo aktualizuje pouze účet `monitor-ro` a
-zachová všechny existující účty. Restart feed-brokeru načte nový password file,
-ACL, `$SYS` statistiky a connection log topics. Interní kontrola webu:
+`./scripts/start.sh` udržuje `mosquitto/config/passwd` a `acl` automaticky
+synchronizované s `.env` a `feed-readers.env` (viz [Hesla
+služeb](#hesla-služeb)) a restartuje `feed-broker`, jen když se skutečně
+něco změnilo — samostatný krok pro `monitor-ro` už není potřeba. Interní
+kontrola webu:
 
 ```bash
 ./scripts/compose.sh exec nginx wget -qO- \
@@ -545,11 +564,16 @@ Zálohujte minimálně:
 
 ```text
 /opt/meshcore-mqtt-stack/.env
+/opt/meshcore-mqtt-stack/feed-readers.env
 /opt/meshcore-mqtt-stack/mosquitto/config/passwd
 /opt/meshcore-mqtt-stack/mosquitto/data/
 /opt/meshcore-mqtt-stack/public-broker/data/
 /opt/meshcore-mqtt-stack/monitor/data/
 ```
+
+`mosquitto/config/acl` nezálohujte samostatně — je to jen odvozený výstup
+`.env` a `feed-readers.env`, `create-mosquitto-users.sh` ho po obnově zálohy
+znovu vygeneruje.
 
 Před kopírováním monitorovací databáze zastavte službu `monitor`, nebo použijte
 SQLite online backup. Samotné kopírování souboru `monitor.db` za běhu nemusí
