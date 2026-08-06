@@ -5,12 +5,12 @@
 Tento dokument je určený administrátorům. Obsahuje úplný postup instalace,
 konfigurace, aktualizace, monitoringu, diagnostiky a zálohování MQTT1 a MQTT2.
 
-Deployment je navržený pro dva nezávislé uzly. MQTT1 používá veřejný nadřazený
-Nginx proxy, MQTT2 používá Cloudflare Tunnel.
+Deployment je navržený pro dva nezávislé uzly na dvou samostatných serverech.
+Oba jsou zveřejněné přes Cloudflare Tunnel.
 
 | Uzel | Endpoint | Přístup | Token audience | Stav |
 |---|---|---|---|---|
-| MQTT1 | `wss://mqtt1.meshcore.cz/mqtt` | nadřazený Nginx | `mqtt1.meshcore.cz` | zatím nenasazený |
+| MQTT1 | `wss://mqtt1.meshcore.node.cz/mqtt` | Cloudflare Tunnel | `mqtt1.meshcore.node.cz` | zatím nenasazený |
 | MQTT2 | `wss://mqtt2.meshcore.website/mqtt` | Cloudflare Tunnel | `mqtt2.meshcore.website` | v provozu |
 
 ## Aktuální stav MQTT2
@@ -70,7 +70,7 @@ obecné `404 Not found`.
   administrační web;
 - `nginx`: HTTP/WebSocket proxy před `public-broker` a read-only cestou
   `/feed` interního brokeru;
-- `cloudflared`: pouze na MQTT2.
+- `cloudflared`: na obou uzlech.
 
 Observer účet ani observer heslo se nevytváří. Každý klient podepisuje svůj
 token vlastní MeshCore identitou. Statická hesla jsou pouze pro interní služby.
@@ -146,16 +146,24 @@ chmod 600 .env
 V `.env` nastavte všechny hodnoty `CHANGE_ME`. Pevně ponechte:
 
 ```env
-PUBLIC_DOMAIN=mqtt1.meshcore.cz
-AUTH_EXPECTED_AUDIENCE=mqtt1.meshcore.cz
+PUBLIC_DOMAIN=mqtt1.meshcore.node.cz
+AUTH_EXPECTED_AUDIENCE=mqtt1.meshcore.node.cz
 MQTT_INPUT_TOPIC=meshcore/#
 MQTT_OUTPUT_PREFIX=meshcore
 DEDUP_KEY_MODE=topic_raw
+MONITOR_DOMAIN=monitor-mqtt1.meshcore.node.cz
+MONITOR_EVENTS_ENABLED=true
+MONITOR_TOPIC_PREFIX=meshcore-monitor
+MONITOR_OBSERVER_IP_SOURCE=source1
+MONITOR_RETENTION_DAYS=30
+MONITOR_ACTIVE_WINDOW_SECONDS=180
 ```
 
-Lokální Nginx naslouchá na portu 80. Nadřazený veřejný Nginx musí proxyovat
-`/mqtt` na `http://<MQTT1_INTERNAL_IP>:80/mqtt` včetně WebSocket hlaviček.
-Port 80 MQTT VM povolte pouze z adresy nadřazeného proxy.
+Stejně jako na MQTT2 nastavte Cloudflare Tunnel pro MQTT endpoint na službu
+`http://nginx:80` a jeho token vložte do `CLOUDFLARE_TUNNEL_TOKEN`. Monitorovací
+hostname přidejte do tunelu až po vytvoření Cloudflare Access aplikace podle
+části „Monitoring“ — postup je pro oba uzly stejný, jen s vlastním hostname
+`monitor-mqtt1.meshcore.node.cz`.
 
 ## Hesla služeb
 
@@ -230,12 +238,12 @@ Každý fyzický klient má dva aktivní observer profily:
 
 ```text
 Profil MQTT1
-server: mqtt1.meshcore.cz
+server: mqtt1.meshcore.node.cz
 port: 443
 transport: websockets
 TLS: ano
 auth token: ano
-token audience: mqtt1.meshcore.cz
+token audience: mqtt1.meshcore.node.cz
 
 Profil MQTT2
 server: mqtt2.meshcore.website
@@ -289,13 +297,15 @@ Příklad vzdáleného CoreScope:
 }
 ```
 
-## Monitoring MQTT2
+## Monitoring MQTT1 a MQTT2
 
-Monitorovací web běží v kontejneru `monitor` na interním portu `8080`. Port
-není namapovaný na hostitele. Nginx jej zpřístupňuje pouze pod hostname:
+Postup je pro oba uzly stejný, jen s vlastním hostname. Monitorovací web běží
+v kontejneru `monitor` na interním portu `8080`. Port není namapovaný na
+hostitele. Nginx jej zpřístupňuje pouze pod hostname:
 
 ```text
-https://monitor-mqtt2.meshcore.website
+https://monitor-mqtt1.meshcore.node.cz  (MQTT1)
+https://monitor-mqtt2.meshcore.website  (MQTT2)
 ```
 
 Dashboard zobrazuje:
@@ -339,36 +349,32 @@ neurčeno     záznam vznikl před nasazením klasifikace a nelze jej přesně u
 ```
 
 Read-only WebSocket provoz `/feed` vede z Nginxu přes interní `feed-proxy` na
-samostatný Mosquitto listener `9002`. Nginx vždy přepíše interní hlavičku
-`X-MeshCore-Client-IP`: na MQTT2 hodnotou `CF-Connecting-IP` od Cloudflare a na
-MQTT1 přímo přijatou adresou `$remote_addr`. HAProxy tuto ověřenou IP nastaví
-jako zdroj a předá Mosquittu pomocí PROXY protocol v2. Mosquitto ji proto zapíše
-ke správnému MQTT client ID a účtu. Listener `9002` není publikovaný na hostiteli;
-přímé interní služby nadále používají listener `9001` bez PROXY protocolu.
-IP v dashboardu je veřejná adresa klienta bez technického portu interního proxy
-spojení.
+samostatný Mosquitto listener `9002`. Nginx na obou uzlech stejně přepíše
+interní hlavičku `X-MeshCore-Client-IP` hodnotou `CF-Connecting-IP` od
+Cloudflare. HAProxy tuto ověřenou IP nastaví jako zdroj a předá Mosquittu
+pomocí PROXY protocol v2. Mosquitto ji proto zapíše ke správnému MQTT client ID
+a účtu. Listener `9002` není publikovaný na hostiteli; přímé interní služby
+nadále používají listener `9001` bez PROXY protocolu. IP v dashboardu je
+veřejná adresa klienta bez technického portu interního proxy spojení.
 
-Na Cloudflare nesmí být pro MQTT2 zapnutý Managed Transform `Remove visitor IP
-headers`, jinak nebude `CF-Connecting-IP` doručená Nginxu a `/feed` spojení bude
-bezpečně odmítnuto. Klient musí po nasazení navázat nové spojení, aby se jeho
-veřejná IP propsala do monitoru.
+Na Cloudflare nesmí být pro žádný z uzlů zapnutý Managed Transform `Remove
+visitor IP headers`, jinak nebude `CF-Connecting-IP` doručená Nginxu a `/feed`
+spojení bude bezpečně odmítnuto. Klient musí po nasazení navázat nové spojení,
+aby se jeho veřejná IP propsala do monitoru.
 
-Veřejná IP observeru se získává odděleně přímo v tokenovém brokeru. MQTT2 Nginx
-předává hlavičku `CF-Connecting-IP` jak pro `/mqtt`, tak pro kořenový WebSocket
-`/`, který používá Home Assistant. Broker po úspěšném ověření tokenu vytvoří
-privátní událost `$meshcore-monitor/observer/ip/{public_key}`. Číst ji smí jen
-`dedup-reader`; worker na MQTT2 ji přijímá výhradně ze `source2` a lokálně ji
-uloží pod `meshcore-monitor/observer/ip/{public_key}`. Údaj neprochází přes
-`meshcore/#`, takže jej CoreScope, mapa ani jiné read-only služby neuvidí.
+Veřejná IP observeru se získává odděleně přímo v tokenovém brokeru. Nginx na
+obou uzlech předává hlavičku `CF-Connecting-IP` jak pro `/mqtt`, tak pro
+kořenový WebSocket `/`, který používá Home Assistant. Broker po úspěšném
+ověření tokenu vytvoří privátní událost
+`$meshcore-monitor/observer/ip/{public_key}`. Číst ji smí jen `dedup-reader`;
+worker na daném uzlu ji přijímá výhradně ze svého lokálního zdroje (MQTT1:
+`source1`, MQTT2: `source2`) a lokálně ji uloží pod
+`meshcore-monitor/observer/ip/{public_key}`. Údaj neprochází přes `meshcore/#`,
+takže jej CoreScope, mapa ani jiné read-only služby neuvidí.
 
-Volbu lokálního zdroje řídí `MONITOR_OBSERVER_IP_SOURCE`. MQTT2 override ji
-nastavuje na `source2`, MQTT1 override na `source1`. Při změně pořadí zdrojů se
+Volbu lokálního zdroje řídí `MONITOR_OBSERVER_IP_SOURCE`. MQTT1 override ji
+nastavuje na `source1`, MQTT2 override na `source2`. Při změně pořadí zdrojů se
 musí odpovídajícím způsobem změnit i tato hodnota.
-
-U plánovaného MQTT1 bude `$remote_addr` bez další konfigurace představovat
-adresu nadřazeného Nginxu. Až se MQTT1 nasadí, musí se důvěryhodné předání
-skutečné klientské IP mezi oběma Nginx vrstvami navrhnout podle jejich síťového
-zapojení; hlavička dodaná přímo veřejným klientem se nesmí slepě důvěřovat.
 
 Monitor neukládá původní MQTT payloady, `raw` packet, tokeny, hesla ani privátní
 klíče. SQLite databáze obsahuje agregované statistiky a poslední známou IP
@@ -428,16 +434,17 @@ Očekávaný výsledek je:
 {"status":"ok","feed_connected":true}
 ```
 
-Před přidáním monitorovacího
-hostname do tunelu nejprve vytvořte Cloudflare Access aplikaci. Access nesmí
-chránit celý hostname `mqtt2.meshcore.website`, protože MQTT klienti neumějí
-browserové přihlášení Cloudflare Access.
+Před přidáním monitorovacího hostname do tunelu nejprve vytvořte Cloudflare
+Access aplikaci. Access nesmí chránit celý hostname veřejného MQTT endpointu
+(`mqtt1.meshcore.node.cz` nebo `mqtt2.meshcore.website`), protože MQTT klienti
+neumějí browserové přihlášení Cloudflare Access.
 
 V Cloudflare Zero Trust zvolte `Access controls → Applications → Add an
 application → Self-hosted and private → Public DNS`. Vytvořte aplikaci pouze
-pro hostname `monitor-mqtt2.meshcore.website`, bez omezení na cestu.
+pro hostname monitoru daného uzlu (`monitor-mqtt1.meshcore.node.cz` nebo
+`monitor-mqtt2.meshcore.website`), bez omezení na cestu.
 
-Doporučená politika:
+Doporučená politika (příklad pro MQTT2, pro MQTT1 analogicky):
 
 ```text
 Policy name: MQTT2 administrators
@@ -454,11 +461,11 @@ pravidel, která se vyhodnocují současně. Jako identity provider lze použít
 Cloudflare One-time PIN nebo nakonfigurované SSO. `Cloudflare One Client` není
 pro tento browserový dashboard potřeba.
 
-Teprve potom v existujícím Cloudflare Tunnel přidejte další published
-application route/public hostname:
+Teprve potom v Cloudflare Tunnelu daného uzlu přidejte published application
+route/public hostname:
 
 ```text
-Hostname: monitor-mqtt2.meshcore.website
+Hostname: monitor-mqtt1.meshcore.node.cz nebo monitor-mqtt2.meshcore.website
 Service:  http://nginx:80
 ```
 
@@ -471,7 +478,7 @@ a jednou například přes mobilní data, odkud musí být zamítnutý.
 
 ### Kontrola monitoringu
 
-Po nasazení MQTT2 musí výpis obsahovat sedm běžících služeb; `feed-broker`,
+Po nasazení uzlu musí výpis obsahovat sedm běžících služeb; `feed-broker`,
 `feed-proxy`, `monitor` a `nginx` mají být `healthy`:
 
 ```bash

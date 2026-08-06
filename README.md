@@ -36,12 +36,13 @@ přístup k interním účtům ani k monitorovacím topicům.
 
 | Uzel | Veřejný vstup observerů | Deduplikovaný feed | Zveřejnění | Stav |
 |---|---|---|---|---|
-| MQTT1 | `wss://mqtt1.meshcore.cz/mqtt` | `wss://mqtt1.meshcore.cz/feed` | veřejná IP a nadřazený Nginx | plánovaný |
+| MQTT1 | `wss://mqtt1.meshcore.node.cz/mqtt` | `wss://mqtt1.meshcore.node.cz/feed` | Cloudflare Tunnel | plánovaný |
 | MQTT2 | `wss://mqtt2.meshcore.website/mqtt` | `wss://mqtt2.meshcore.website/feed` | Cloudflare Tunnel | v provozu |
 
-Každý uzel používá vlastní token audience:
+Oba uzly jsou zveřejněné přes Cloudflare Tunnel, každý na vlastním serveru a
+vlastní doméně. Každý uzel používá vlastní token audience:
 
-- MQTT1: `mqtt1.meshcore.cz`
+- MQTT1: `mqtt1.meshcore.node.cz`
 - MQTT2: `mqtt2.meshcore.website`
 
 Token určený pro MQTT1 proto nelze použít na MQTT2 a naopak. Observer má dva
@@ -72,7 +73,7 @@ mapě. Změní se pouze vstupní zdroj deduplikačního workeru.
 - `feed-proxy` – zachovává skutečnou IP read-only klientů;
 - `monitor` – administrační dashboard a provozní agregace;
 - `nginx` – veřejný HTTP/WebSocket vstup;
-- `cloudflared` – pouze na MQTT2.
+- `cloudflared` – na obou uzlech.
 
 MQTT2 monitoring je dostupný na
 `https://monitor-mqtt2.meshcore.website` a je chráněný Cloudflare Access.

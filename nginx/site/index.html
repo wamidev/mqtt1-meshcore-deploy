@@ -79,7 +79,7 @@
         <div class="flow-label">WSS + TLS</div>
         <div class="connector fork" aria-hidden="true"></div>
         <div class="broker-row">
-          <div class="node broker"><span class="node-icon">M1</span><div><small>mqtt1.meshcore.cz</small><strong>MQTT1 Czech</strong></div><b>ONLINE</b></div>
+          <div class="node broker"><span class="node-icon">M1</span><div><small>mqtt1.meshcore.node.cz</small><strong>MQTT1 Czech</strong></div><b>ONLINE</b></div>
           <div class="node broker"><span class="node-icon">M2</span><div><small>mqtt2.meshcore.website</small><strong>MQTT2 Czech</strong></div><b>ONLINE</b></div>
         </div>
         <div class="connector join" aria-hidden="true"></div>
@@ -93,7 +93,7 @@
     </section>
 
     <section class="facts" aria-label="Parametry připojení">
-      <div><span>Servery</span><strong>mqtt1.meshcore.cz<br>mqtt2.meshcore.website</strong><button class="copy-inline" data-copy="mqtt1.meshcore.cz&#10;mqtt2.meshcore.website" aria-label="Kopírovat servery">Kopírovat</button></div>
+      <div><span>Servery</span><strong>mqtt1.meshcore.node.cz<br>mqtt2.meshcore.website</strong><button class="copy-inline" data-copy="mqtt1.meshcore.node.cz&#10;mqtt2.meshcore.website" aria-label="Kopírovat servery">Kopírovat</button></div>
       <div><span>Port</span><strong>443</strong></div>
       <div><span>Transport</span><strong>WebSockets</strong></div>
       <div><span>Zabezpečení</span><strong>TLS ověřeno</strong></div>
@@ -128,7 +128,7 @@
 [[broker]]
 name = "MQTT1 Czech"
 enabled = true
-server = "mqtt1.meshcore.cz"
+server = "mqtt1.meshcore.node.cz"
 port = 443
 transport = "websockets"
 keepalive = 60
@@ -140,7 +140,7 @@ verify = true
 
 [broker.auth]
 method = "token"
-audience = "mqtt1.meshcore.cz"
+audience = "mqtt1.meshcore.node.cz"
 
 [broker.topics]
 iata = "XXX"
@@ -184,7 +184,7 @@ iata = "XXX"
 [[broker]]
 name = "MQTT1 Czech"
 enabled = true
-server = "mqtt1.meshcore.cz"
+server = "mqtt1.meshcore.node.cz"
 port = 443
 transport = "websockets"
 keepalive = 60
@@ -196,7 +196,7 @@ verify = true
 
 [broker.auth]
 method = "token"
-audience = "mqtt1.meshcore.cz"
+audience = "mqtt1.meshcore.node.cz"
 
 [broker.topics]
 iata = "XXX"
@@ -230,7 +230,7 @@ packets = "meshcore/{IATA}/{PUBLIC_KEY}/packets"</code></pre></div>
         <div class="tab-panel" id="ha" role="tabpanel" aria-labelledby="tab-ha" hidden>
           <div class="ha-path">Nastavení <span>›</span> Zařízení a služby <span>›</span> MeshCore <span>›</span> Konfigurovat <span>›</span> Manage MQTT Brokers <span>›</span> Add Broker<br><small>Přidejte samostatně zapnuté profily MQTT1 Czech a MQTT2 Czech.</small></div>
           <div class="settings-grid">
-            <dl><div><dt>MQTT1 Czech server / audience</dt><dd>mqtt1.meshcore.cz</dd></div><div><dt>MQTT1 Enabled</dt><dd class="yes">Zapnuto</dd></div><div><dt>MQTT2 Czech server / audience</dt><dd>mqtt2.meshcore.website</dd></div><div><dt>MQTT2 Enabled</dt><dd class="yes">Zapnuto</dd></div><div><dt>Port</dt><dd>443</dd></div></dl>
+            <dl><div><dt>MQTT1 Czech server / audience</dt><dd>mqtt1.meshcore.node.cz</dd></div><div><dt>MQTT1 Enabled</dt><dd class="yes">Zapnuto</dd></div><div><dt>MQTT2 Czech server / audience</dt><dd>mqtt2.meshcore.website</dd></div><div><dt>MQTT2 Enabled</dt><dd class="yes">Zapnuto</dd></div><div><dt>Port</dt><dd>443</dd></div></dl>
             <dl><div><dt>Transport</dt><dd>websockets</dd></div><div><dt>Use TLS</dt><dd class="yes">Zapnuto</dd></div><div><dt>Verify TLS Certificate</dt><dd class="yes">Zapnuto</dd></div><div><dt>Use MeshCore Auth Token</dt><dd class="yes">Zapnuto</dd></div><div><dt>Broker IATA Code</dt><dd>váš kód kraje</dd></div></dl>
           </div>
           <div class="notice"><strong>Nechte prázdné:</strong> Username, Password, Owner Public Key a Owner Email. Integrace token vytváří a obnovuje automaticky.</div>
@@ -246,7 +246,7 @@ packets = "meshcore/{IATA}/{PUBLIC_KEY}/packets"</code></pre></div>
     </section>
   </main>
 
-  <footer><div class="brand compact"><img class="brand-logo" src="/site/meshcore-czech-icon.png" alt=""><span><strong>MeshCore Czech</strong><small>Komunitní MQTT infrastruktura</small></span></div><p>MQTT1: <code>mqtt1.meshcore.cz</code> · MQTT2: <code>mqtt2.meshcore.website</code></p><a href="#">Nahoru ↑</a></footer>
+  <footer><div class="brand compact"><img class="brand-logo" src="/site/meshcore-czech-icon.png" alt=""><span><strong>MeshCore Czech</strong><small>Komunitní MQTT infrastruktura</small></span></div><p>MQTT1: <code>mqtt1.meshcore.node.cz</code> · MQTT2: <code>mqtt2.meshcore.website</code></p><a href="#">Nahoru ↑</a></footer>
   <div id="toast" class="toast" role="status" aria-live="polite">Zkopírováno do schránky</div>
 </body>
 </html>

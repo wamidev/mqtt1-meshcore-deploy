@@ -43,10 +43,12 @@ done
 }
 
 case "${DEPLOY_MODE:-}" in
-  mqtt1-proxy)
+  mqtt1-tunnel)
     COMPOSE_OVERRIDE=docker-compose.mqtt1.yml
-    [ "$AUTH_EXPECTED_AUDIENCE" = "mqtt1.meshcore.cz" ] || { echo "MQTT1 audience must be mqtt1.meshcore.cz." >&2; exit 1; }
+    [ "$AUTH_EXPECTED_AUDIENCE" = "mqtt1.meshcore.node.cz" ] || { echo "MQTT1 audience must be mqtt1.meshcore.node.cz." >&2; exit 1; }
     [ "$PUBLIC_BROKER_READER_PASSWORD" = "$MQTT_SOURCE_1_PASSWORD" ] || { echo "PUBLIC_BROKER_READER_PASSWORD must equal MQTT_SOURCE_1_PASSWORD on MQTT1." >&2; exit 1; }
+    [ -n "${CLOUDFLARE_TUNNEL_TOKEN:-}" ] || { echo "Missing CLOUDFLARE_TUNNEL_TOKEN." >&2; exit 1; }
+    [ "${MONITOR_DOMAIN:-}" = "monitor-mqtt1.meshcore.node.cz" ] || { echo "MQTT1 monitor domain must be monitor-mqtt1.meshcore.node.cz." >&2; exit 1; }
     ;;
   mqtt2-tunnel)
     COMPOSE_OVERRIDE=docker-compose.mqtt2.yml
@@ -56,7 +58,7 @@ case "${DEPLOY_MODE:-}" in
     [ "${MONITOR_DOMAIN:-}" = "monitor-mqtt2.meshcore.website" ] || { echo "MQTT2 monitor domain must be monitor-mqtt2.meshcore.website." >&2; exit 1; }
     ;;
   *)
-    echo "DEPLOY_MODE must be mqtt1-proxy or mqtt2-tunnel." >&2
+    echo "DEPLOY_MODE must be mqtt1-tunnel or mqtt2-tunnel." >&2
     exit 1
     ;;
 esac

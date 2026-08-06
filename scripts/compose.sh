@@ -13,9 +13,9 @@ set -a
 set +a
 
 case "${DEPLOY_MODE:-}" in
-  mqtt1-proxy) COMPOSE_OVERRIDE=docker-compose.mqtt1.yml ;;
+  mqtt1-tunnel) COMPOSE_OVERRIDE=docker-compose.mqtt1.yml ;;
   mqtt2-tunnel) COMPOSE_OVERRIDE=docker-compose.mqtt2.yml ;;
-  *) echo "DEPLOY_MODE must be mqtt1-proxy or mqtt2-tunnel." >&2; exit 1 ;;
+  *) echo "DEPLOY_MODE must be mqtt1-tunnel or mqtt2-tunnel." >&2; exit 1 ;;
 esac
 
 exec docker compose -f docker-compose.yml -f "$COMPOSE_OVERRIDE" "$@"

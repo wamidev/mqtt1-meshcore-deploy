@@ -15,16 +15,29 @@ services:
         condition: service_healthy
       monitor:
         condition: service_healthy
-    ports:
-      - "80:80"
+    expose:
+      - "80"
     environment:
       PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
+      MONITOR_DOMAIN: ${MONITOR_DOMAIN}
     volumes:
       - ./nginx/templates/mqtt1:/etc/nginx/templates:ro
+      - ./nginx/site:/usr/share/nginx/html/site:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q --header=\"Host: $${PUBLIC_DOMAIN}\" --spider http://127.0.0.1/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
+    networks: [meshcore_mqtt]
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on:
+      nginx:
+        condition: service_healthy
+    command: tunnel --no-autoupdate --loglevel info --metrics 0.0.0.0:2000 run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     networks: [meshcore_mqtt]
