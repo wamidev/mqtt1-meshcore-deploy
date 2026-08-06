@@ -67,6 +67,12 @@ compose() {
   docker compose -f docker-compose.yml -f "$COMPOSE_OVERRIDE" "$@"
 }
 
+if git rev-parse HEAD >/dev/null 2>&1; then
+  cat > deploy-meta.json <<META
+{"commit":"$(git rev-parse HEAD)","commit_short":"$(git rev-parse --short HEAD)","deployed_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
+META
+fi
+
 compose config --quiet
 compose pull
 compose up -d

@@ -122,6 +122,7 @@ services:
       MONITOR_ACTIVE_WINDOW_SECONDS: ${MONITOR_ACTIVE_WINDOW_SECONDS:-180}
     volumes:
       - ./monitor/data:/data
+      - ./deploy-meta.json:/deploy-meta.json:ro
     expose:
       - "8080"
     healthcheck:

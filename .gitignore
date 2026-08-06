@@ -1,4 +1,5 @@
 .env
+deploy-meta.json
 mosquitto/config/passwd
 mosquitto/data/
 mosquitto/log/
