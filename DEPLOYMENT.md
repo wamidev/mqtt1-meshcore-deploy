@@ -40,6 +40,18 @@ Stav k 5. 8. 2026:
 - stará data s chybným regionem `FEED` patří do databáze CoreScope, nikoli do
   Mosquitta; worker publikuje s `retain=false`.
 
+Stav k 7. 8. 2026:
+
+- automatický deploy přes self-hosted runner na `mqtt2-meshcore-deploy` je
+  plně funkční — po opravě oprávnění uživatele `gh-runner` (skupiny `mwalek` a
+  `docker`, `safe.directory`, SSH deploy key namísto tokenu, `chmod 640 .env`,
+  viz [Požadavky na uživatele runneru](../README.md#požadavky-na-uživatele-runneru))
+  proběhl testovací `workflow_dispatch` běh `deploy.yml` úspěšně;
+- monitorovací dashboard: popisky časové osy grafu „Provoz a duplicity" nyní
+  zobrazují datum i čas (dřív jen `HH:MM`, což u 24hodinového okna
+  přesahujícího půlnoc působilo jako obrácený čas), a najetím myší na graf se
+  zobrazí tooltip s hodnotami nejbližšího bodu.
+
 Oba endpointy přijímají WebSocket na `/mqtt` i na `/`. Cesta `/` je nutná pro
 MeshCore integraci v Home Assistantu, která ji nastavuje pevně.
 
