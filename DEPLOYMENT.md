@@ -10,7 +10,7 @@ Oba jsou zveřejněné přes Cloudflare Tunnel.
 
 | Uzel | Endpoint | Přístup | Token audience | Stav |
 |---|---|---|---|---|
-| MQTT1 | `wss://mqtt1.meshcore.node.cz/mqtt` | Cloudflare Tunnel | `mqtt1.meshcore.node.cz` | zatím nenasazený |
+| MQTT1 | `wss://mqtt1-meshcore.node.cz/mqtt` | Cloudflare Tunnel | `mqtt1-meshcore.node.cz` | zatím nenasazený |
 | MQTT2 | `wss://mqtt2.meshcore.website/mqtt` | Cloudflare Tunnel | `mqtt2.meshcore.website` | v provozu |
 
 ## Rychlá instalace čerstvého serveru
@@ -187,12 +187,12 @@ chmod 640 feed-readers.env
 V `.env` nastavte všechny hodnoty `CHANGE_ME`. Pevně ponechte:
 
 ```env
-PUBLIC_DOMAIN=mqtt1.meshcore.node.cz
-AUTH_EXPECTED_AUDIENCE=mqtt1.meshcore.node.cz
+PUBLIC_DOMAIN=mqtt1-meshcore.node.cz
+AUTH_EXPECTED_AUDIENCE=mqtt1-meshcore.node.cz
 MQTT_INPUT_TOPIC=meshcore/#
 MQTT_OUTPUT_PREFIX=meshcore
 DEDUP_KEY_MODE=topic_raw
-MONITOR_DOMAIN=monitor-mqtt1.meshcore.node.cz
+MONITOR_DOMAIN=monitor-mqtt1-meshcore.node.cz
 MONITOR_EVENTS_ENABLED=true
 MONITOR_TOPIC_PREFIX=meshcore-monitor
 MONITOR_OBSERVER_IP_SOURCE=source1
@@ -204,7 +204,7 @@ Stejně jako na MQTT2 nastavte Cloudflare Tunnel pro MQTT endpoint na službu
 `http://nginx:80` a jeho token vložte do `CLOUDFLARE_TUNNEL_TOKEN`. Monitorovací
 hostname přidejte do tunelu až po vytvoření Cloudflare Access aplikace podle
 části „Monitoring“ — postup je pro oba uzly stejný, jen s vlastním hostname
-`monitor-mqtt1.meshcore.node.cz`.
+`monitor-mqtt1-meshcore.node.cz`.
 
 ## Hesla služeb
 
@@ -308,12 +308,12 @@ Každý fyzický klient má dva aktivní observer profily:
 
 ```text
 Profil MQTT1
-server: mqtt1.meshcore.node.cz
+server: mqtt1-meshcore.node.cz
 port: 443
 transport: websockets
 TLS: ano
 auth token: ano
-token audience: mqtt1.meshcore.node.cz
+token audience: mqtt1-meshcore.node.cz
 
 Profil MQTT2
 server: mqtt2.meshcore.website
@@ -375,7 +375,7 @@ v kontejneru `monitor` na interním portu `8080`. Port není namapovaný na
 hostitele. Nginx jej zpřístupňuje pouze pod hostname:
 
 ```text
-https://monitor-mqtt1.meshcore.node.cz  (MQTT1)
+https://monitor-mqtt1-meshcore.node.cz  (MQTT1)
 https://monitor-mqtt2.meshcore.website  (MQTT2)
 ```
 
@@ -495,12 +495,12 @@ Očekávaný výsledek je:
 
 Před přidáním monitorovacího hostname do tunelu nejprve vytvořte Cloudflare
 Access aplikaci. Access nesmí chránit celý hostname veřejného MQTT endpointu
-(`mqtt1.meshcore.node.cz` nebo `mqtt2.meshcore.website`), protože MQTT klienti
+(`mqtt1-meshcore.node.cz` nebo `mqtt2.meshcore.website`), protože MQTT klienti
 neumějí browserové přihlášení Cloudflare Access.
 
 V Cloudflare Zero Trust zvolte `Access controls → Applications → Add an
 application → Self-hosted and private → Public DNS`. Vytvořte aplikaci pouze
-pro hostname monitoru daného uzlu (`monitor-mqtt1.meshcore.node.cz` nebo
+pro hostname monitoru daného uzlu (`monitor-mqtt1-meshcore.node.cz` nebo
 `monitor-mqtt2.meshcore.website`), bez omezení na cestu.
 
 Doporučená politika (příklad pro MQTT2, pro MQTT1 analogicky):
@@ -524,7 +524,7 @@ Teprve potom v Cloudflare Tunnelu daného uzlu přidejte published application
 route/public hostname:
 
 ```text
-Hostname: monitor-mqtt1.meshcore.node.cz nebo monitor-mqtt2.meshcore.website
+Hostname: monitor-mqtt1-meshcore.node.cz nebo monitor-mqtt2.meshcore.website
 Service:  http://nginx:80
 ```
 

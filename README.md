@@ -36,13 +36,13 @@ přístup k interním účtům ani k monitorovacím topicům.
 
 | Uzel | Veřejný vstup observerů | Deduplikovaný feed | Zveřejnění | Stav |
 |---|---|---|---|---|
-| MQTT1 | `wss://mqtt1.meshcore.node.cz/mqtt` | `wss://mqtt1.meshcore.node.cz/feed` | Cloudflare Tunnel | plánovaný |
+| MQTT1 | `wss://mqtt1-meshcore.node.cz/mqtt` | `wss://mqtt1-meshcore.node.cz/feed` | Cloudflare Tunnel | plánovaný |
 | MQTT2 | `wss://mqtt2.meshcore.website/mqtt` | `wss://mqtt2.meshcore.website/feed` | Cloudflare Tunnel | v provozu |
 
 Oba uzly jsou zveřejněné přes Cloudflare Tunnel, každý na vlastním serveru a
 vlastní doméně. Každý uzel používá vlastní token audience:
 
-- MQTT1: `mqtt1.meshcore.node.cz`
+- MQTT1: `mqtt1-meshcore.node.cz`
 - MQTT2: `mqtt2.meshcore.website`
 
 Token určený pro MQTT1 proto nelze použít na MQTT2 a naopak. Observer má dva

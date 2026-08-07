@@ -8,7 +8,7 @@
 
 ## MQTT servery
 
-- MQTT1 Czech: `mqtt1.meshcore.node.cz`, port 443, WebSockets, TLS, token audience `mqtt1.meshcore.node.cz`
+- MQTT1 Czech: `mqtt1-meshcore.node.cz`, port 443, WebSockets, TLS, token audience `mqtt1-meshcore.node.cz`
 - MQTT2 Czech: `mqtt2.meshcore.website`, port 443, WebSockets, TLS, token audience `mqtt2.meshcore.website`
 - Topic statusu: `meshcore/{IATA}/{PUBLIC_KEY}/status`
 - Topic paketů: `meshcore/{IATA}/{PUBLIC_KEY}/packets`
