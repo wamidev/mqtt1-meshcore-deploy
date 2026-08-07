@@ -155,6 +155,12 @@ chgrp -R "$DEPLOY_GROUP" "$DEPLOY_DIR"
 find "$DEPLOY_DIR" -type d -exec chmod g+rwx {} +
 chmod 640 .env feed-readers.env
 
+# So whoever ran this via sudo can keep editing .env/feed-readers.env
+# afterwards without needing sudo for every read/edit.
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+  usermod -aG "$DEPLOY_GROUP" "$SUDO_USER"
+fi
+
 RUNNER_USER=gh-runner
 RUNNER_HOME=/opt/github
 if ! id "$RUNNER_USER" >/dev/null 2>&1; then
@@ -192,6 +198,12 @@ if [ -n "$GENERATED_READERS" ]; then
   printf '%s' "$GENERATED_READERS"
 else
   echo "  (žádný feed reader účet nebyl zadán)"
+fi
+
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+  echo
+  echo "Uživatel $SUDO_USER byl přidán do skupiny $DEPLOY_GROUP (čtení/zápis"
+  echo ".env a feed-readers.env bez sudo) - projeví se až po novém přihlášení."
 fi
 
 echo
