@@ -13,6 +13,29 @@ Oba jsou zveřejněné přes Cloudflare Tunnel.
 | MQTT1 | `wss://mqtt1.meshcore.node.cz/mqtt` | Cloudflare Tunnel | `mqtt1.meshcore.node.cz` | zatím nenasazený |
 | MQTT2 | `wss://mqtt2.meshcore.website/mqtt` | Cloudflare Tunnel | `mqtt2.meshcore.website` | v provozu |
 
+## Rychlá instalace čerstvého serveru
+
+Na čerstvém Ubuntu Serveru 24.04 LTS zvládne `scripts/bootstrap.sh` většinu
+instalace sám: doinstaluje Docker, vygeneruje všechna interní servisní hesla,
+zeptá se jen na to, co skutečně musí zadat člověk (Cloudflare Tunnel token,
+heslo `dedup-reader` druhého uzlu, případné read-only feed účty), a stack
+rovnou spustí:
+
+```bash
+git clone git@github.com:wamidev/mqtt1-meshcore-deploy.git /opt/meshcore-mqtt-stack
+cd /opt/meshcore-mqtt-stack
+sudo ./scripts/bootstrap.sh
+```
+
+(pro MQTT2 stejně, jen s `mqtt2-meshcore-deploy` — uzel pozná sám podle URL
+remote repozitáře). Na konci vypíše veřejný SSH klíč a přesné odkazy pro dva
+kroky, které musí proběhnout ručně na GitHubu: přidání read-only deploy key a
+registraci self-hosted runneru (viz [Požadavky na uživatele
+runneru](../README.md#požadavky-na-uživatele-runneru)). Skript je jen pro
+prvotní instalaci — pokud `.env` už existuje, odmítne pokračovat, aby
+nepřepsal fungující nasazení. Zbytek této kapitoly popisuje, co dělá krok za
+krokem, pro ruční instalaci nebo diagnostiku.
+
 ## Aktuální stav MQTT2
 
 Stav k 5. 8. 2026:
