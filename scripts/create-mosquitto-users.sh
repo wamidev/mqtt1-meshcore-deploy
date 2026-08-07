@@ -62,6 +62,9 @@ name=""
 while IFS= read -r raw_line || [ -n "$raw_line" ]; do
   line=$(printf '%s' "$raw_line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
   [ -z "$line" ] && continue
+  case "$line" in
+    '#'*) continue ;;
+  esac
   if [ -z "$name" ]; then
     name="$line"
     case "$name" in
