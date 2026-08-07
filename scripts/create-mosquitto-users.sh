@@ -119,6 +119,14 @@ while IFS= read -r reader_name && IFS= read -r reader_password; do
   reader_count=$((reader_count + 1))
 done < "$PAIRS_FILE"
 
+# mosquitto_passwd runs as the image's own (non-root) user, so the file it
+# wrote into $WORK_DIR is owned by that UID, not by whoever is running this
+# script (e.g. gh-runner). Make it world-readable so the plain `cp` below
+# works regardless of who invokes the script.
+docker run --rm --user 0:0 --entrypoint sh \
+  -v "$WORK_DIR:/work" "$IMAGE" \
+  -c 'chmod 644 /work/passwd'
+
 mkdir -p "$CONFIG_DIR"
 cp "$NEW_PASSWD" "$PASSWD_FILE"
 cp "$NEW_ACL" "$ACL_FILE"
