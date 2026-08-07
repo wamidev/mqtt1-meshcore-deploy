@@ -85,12 +85,13 @@ compose pull
 compose up -d
 if [ "$feed_accounts_before" != "$feed_accounts_after" ]; then
   compose restart feed-broker
-  # monitor's own connection also drops on this restart; give it a head
-  # start to reconnect and resubscribe before dedup-worker reconnects, or it
-  # can miss the "New client connected" log line for dedup-writer and show
-  # it as disconnected until the next unrelated reconnect.
-  compose restart monitor
-  sleep 5
+  # monitor's own client (reconnect_delay_set + loop_start) reconnects and
+  # resubscribes to the connection log on its own within a couple of
+  # seconds - restarting its container would only add delay. Give it a
+  # comfortable head start before forcing dedup-worker to reconnect, so
+  # monitor is already listening again when dedup-writer's "New client
+  # connected" line gets logged.
+  sleep 8
   compose restart dedup-worker
 fi
 compose ps
