@@ -10,7 +10,7 @@ Oba jsou zveřejněné přes Cloudflare Tunnel.
 
 | Uzel | Endpoint | Přístup | Token audience | Stav |
 |---|---|---|---|---|
-| MQTT1 | `wss://mqtt1-meshcore.node.cz/mqtt` | Cloudflare Tunnel | `mqtt1-meshcore.node.cz` | zatím nenasazený |
+| MQTT1 | `wss://mqtt1-meshcore.node.cz/mqtt` | Cloudflare Tunnel | `mqtt1-meshcore.node.cz` | v nasazování |
 | MQTT2 | `wss://mqtt2.meshcore.website/mqtt` | Cloudflare Tunnel | `mqtt2.meshcore.website` | v provozu |
 
 ## Rychlá instalace čerstvého serveru
@@ -35,6 +35,31 @@ runneru](../README.md#požadavky-na-uživatele-runneru)). Skript je jen pro
 prvotní instalaci — pokud `.env` už existuje, odmítne pokračovat, aby
 nepřepsal fungující nasazení. Zbytek této kapitoly popisuje, co dělá krok za
 krokem, pro ruční instalaci nebo diagnostiku.
+
+## Aktuální stav MQTT1
+
+Stav k 7. 8. 2026:
+
+- server je čerstvá VM na Proxmoxu (Ubuntu Server 24.04 LTS, 4 GB RAM,
+  20 GB disk), nasazená pomocí `scripts/bootstrap.sh`;
+- doména je `mqtt1-meshcore.node.cz` (a monitor
+  `monitor-mqtt1-meshcore.node.cz`) — původně plánovaná dvouúrovňová
+  `mqtt1.meshcore.node.cz` nešla zprovoznit, protože Cloudflare Universal SSL
+  zdarma pokrývá jen jednu úroveň wildcardu (`*.node.cz`), ne
+  `*.meshcore.node.cz`; založení `meshcore.node.cz` jako vlastní Cloudflare
+  zóny navíc není přes standardní "Add a Site" možné (přijímá jen kořenové
+  domény), proto přejmenování na jednoúrovňový tvar s pomlčkou;
+- stack (`public-broker`, `feed-broker`, `feed-proxy`, `dedup-worker`,
+  `monitor`, `nginx`, `cloudflared`) je nasazený a běží;
+- Cloudflare Access pro `monitor-mqtt1-meshcore.node.cz` je nastavený stejným
+  postupem jako u MQTT2 (viz [Monitoring MQTT1 a MQTT2](#monitoring-mqtt1-a-mqtt2));
+- přístup na server je kromě veřejného SSH i přes Tailscale;
+- **zbývá dokončit**: registrace self-hosted GitHub Actions runneru na
+  `mqtt1-meshcore-deploy` — SSH deploy key je už vygenerovaný
+  (`/opt/github/.ssh/id_ed25519.pub`), čeká se na přidání do GitHubu
+  (Settings → Deploy keys) a registraci runneru (Settings → Actions →
+  Runners → New self-hosted runner). Do té doby se nasazuje/aktualizuje
+  ručně přímo na serveru (`git pull --ff-only` + `sudo ./scripts/start.sh`).
 
 ## Aktuální stav MQTT2
 
