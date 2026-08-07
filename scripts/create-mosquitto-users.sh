@@ -128,6 +128,11 @@ docker run --rm --user 0:0 --entrypoint sh \
   -c 'chmod 644 /work/passwd'
 
 mkdir -p "$CONFIG_DIR"
+# The live files are root:root mode 644 (see the chown/chmod below), so an
+# in-place overwrite would need write access to the file itself. Unlink
+# instead: that only needs write access to the directory, which the deploy
+# user has via group membership.
+rm -f "$PASSWD_FILE" "$ACL_FILE"
 cp "$NEW_PASSWD" "$PASSWD_FILE"
 cp "$NEW_ACL" "$ACL_FILE"
 
