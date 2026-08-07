@@ -112,9 +112,9 @@ Interní úložiště Docker Enginu zůstává standardně v `/var/lib/docker`.
 cd /opt/meshcore-mqtt-stack
 git pull --ff-only
 cp .env.mqtt2.example .env
-chmod 600 .env
+chmod 640 .env
 cp feed-readers.env.example feed-readers.env
-chmod 600 feed-readers.env
+chmod 640 feed-readers.env
 ```
 
 V `.env` nastavte všechny hodnoty `CHANGE_ME`. Pevně ponechte:
@@ -156,9 +156,9 @@ Hesla zůstávají pouze v `.env`. Po spuštění MQTT1 se první URL a přihla�
 cd /opt/meshcore-mqtt-stack
 git pull --ff-only
 cp .env.mqtt1.example .env
-chmod 600 .env
+chmod 640 .env
 cp feed-readers.env.example feed-readers.env
-chmod 600 feed-readers.env
+chmod 640 feed-readers.env
 ```
 
 V `.env` nastavte všechny hodnoty `CHANGE_ME`. Pevně ponechte:
@@ -225,8 +225,13 @@ brokeru používá dvojtečku jako oddělovač.
 
 ```bash
 cp feed-readers.env.example feed-readers.env
-chmod 600 feed-readers.env
+chmod 640 feed-readers.env
 ```
+
+`640` (ne `600`) je záměrně — self-hosted GitHub Actions runner běží pod
+vlastním uživatelem (`gh-runner`), který čte tyto soubory jen díky členství
+ve skupině vlastníka; `600` by mu čtení odepřel, viz [Požadavky na uživatele
+runneru](../README.md#požadavky-na-uživatele-runneru).
 
 Formát `feed-readers.env` je dvojice řádků na účet (jméno, pak heslo),
 prázdný řádek mezi účty:
