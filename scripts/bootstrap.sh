@@ -165,6 +165,7 @@ usermod -aG docker "$RUNNER_USER"
 sudo -u "$RUNNER_USER" -H git config --global --add safe.directory "$DEPLOY_DIR"
 
 mkdir -p "$RUNNER_HOME/.ssh"
+chown "$RUNNER_USER:$RUNNER_USER" "$RUNNER_HOME/.ssh"
 chmod 700 "$RUNNER_HOME/.ssh"
 if [ ! -f "$RUNNER_HOME/.ssh/id_ed25519" ]; then
   sudo -u "$RUNNER_USER" -H ssh-keygen -t ed25519 -C "$NODE-deploy" -f "$RUNNER_HOME/.ssh/id_ed25519" -N ""
