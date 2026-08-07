@@ -85,5 +85,12 @@ compose pull
 compose up -d
 if [ "$feed_accounts_before" != "$feed_accounts_after" ]; then
   compose restart feed-broker
+  # monitor's own connection also drops on this restart; give it a head
+  # start to reconnect and resubscribe before dedup-worker reconnects, or it
+  # can miss the "New client connected" log line for dedup-writer and show
+  # it as disconnected until the next unrelated reconnect.
+  compose restart monitor
+  sleep 5
+  compose restart dedup-worker
 fi
 compose ps
